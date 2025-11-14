@@ -1,42 +1,189 @@
-# Sprint 1 - 使用案例
+# Antipode: DayDreamNight — Use Case Specification
 
-## 用户场景
+This document describes the core use cases for the **Antipode: DayDreamNight** video social prototype.  
 
-### 场景 1: 浏览对面视频
-**用户角色**: 普通用户  
-**目标**: 观看来自地球对面的实时视频
+---
 
-**流程**:
-1. 打开应用
-2. 进入首页
-3. 自动计算用户的对立点
-4. 滚动浏览该地区的视频
-5. 点赞、评论或分享视频
+# UC-01: App Launch & Antipode Initialisation
 
-### 场景 2: 录制并分享视频
-**用户角色**: 内容创作者  
-**目标**: 上传每日视频
+## **Goal**
+Obtain user location, compute antipode coordinates, and load recommended videos.
 
-**流程**:
-1. 导航到录制页面
-2. 选择前置/后置摄像头
-3. 录制 10 秒视频
-4. 预览并添加标签和描述
-5. 上传视频
+## **Primary Actor**
+User
 
-### 场景 3: 与朋友聊天
-**用户角色**: 社交用户  
-**目标**: 与朋友进行实时对话
+## **Preconditions**
+- App installed
+- User has not disabled location permissions
 
-**流程**:
-1. 打开聊天页面
-2. 选择朋友或开始新对话
-3. 发送文字和表情符号
-4. 接收实时更新
+## **Main Flow**
+1. User opens the app.
+2. System requests permission to access location.
+3. User grants permission.
+4. A rotating Earth animation appears.
+5. System calculates the antipode:  
+   **lat → -lat**, **lon → lon ± 180°**.
+6. System pins the user location and antipodal point on the Earth model.
+7. Home feed loads videos recorded in the antipodal region.
 
-## 用户故事
+## **Alternative / Exception Flows**
+- **A1: User denies location permission** → Load global trending videos instead.
+- **A2: No internet** → Load cached videos and display an offline banner.
+- **A3: Location error** → Prompt to retry or manually input region.
 
-- [ ] 作为用户，我想看到来自地球对面的视频
-- [ ] 作为创作者，我想每天上传一个短视频
-- [ ] 作为社交用户，我想与朋友实时聊天
-- [ ] 作为用户，我想管理我的个人资料
+---
+
+# UC-02: Browse & Interact with Recommended Videos
+
+## **Goal**
+Allow users to browse, view, and interact with videos from their antipode.
+
+## **Primary Actor**
+User
+
+## **Main Flow**
+1. Home page displays a full-screen video card.
+2. User swipes **up/down** to move between videos.
+3. Floating action buttons appear: ❤️ Like, 💬 Comment, ↗ Share.
+4. User taps ❤️ → Like count increases with animation.
+5. User taps 💬 → Comment sheet slides up; user can add or view comments.
+6. User taps ↗ → System opens share menu.
+7. User taps username or swipes left → Navigate to Profile page.
+
+## **Alternative Flows**
+- **A1: Video load failed** → Show retry button.
+- **A2: No comments available** → Display “Be the first to comment”.
+
+---
+
+# UC-03: View Another User’s Profile
+
+## **Goal**
+Display a user's public information and enable social actions.
+
+## **Primary Actor**
+User
+
+## **Main Flow**
+1. User enters profile via swipe-left or tapping username.
+2. System shows profile header (avatar, nickname, bio).
+3. System displays Pinned videos at the top.
+4. Below shows a list of recent uploads.
+5. User taps **Follow** to follow the creator.
+6. User taps **Message** to open Chat window.
+
+## **Alternative Flows**
+- **A1: Private profile** → Show limited preview and request approval to follow.
+- **A2: Not logged in** → System prompts login before messaging.
+
+---
+
+# UC-04: Chat & Social Messaging
+
+## **Goal**
+Allow users to communicate with friends in real time.
+
+## **Primary Actor**
+User
+
+## **Main Flow**
+1. User opens Chat page.
+2. A session list shows all active conversations.
+3. User selects a friend → Enters chat view.
+4. User sends a message (text or emoji).
+5. Message appears instantly in chat.
+6. System marks message as delivered/seen (simulated in prototype).
+
+## **Alternative Flows**
+- **A1: Network loss** → System buffers outgoing messages.
+- **A2: Blocked user** → Messaging option disabled.
+
+---
+
+# UC-05: Record & Upload Video
+
+## **Goal**
+Allow users to create and upload one short video per day.
+
+## **Primary Actor**
+User
+
+## **Preconditions**
+- Camera permission granted
+- Daily upload limit not exceeded
+
+## **Main Flow**
+1. User taps the center **Record** button.
+2. Record page opens with front/back camera toggle.
+3. User taps **Record** to start capturing (default 10 seconds).
+4. User taps **Stop** → Preview screen appears.
+5. User adds tags, description, and location info.
+6. User taps **Upload** → Upload progress bar appears.
+7. Upload successful → Video appears on Home and Profile.
+
+## **Alternative Flows**
+- **A1: Recording fails** → Show "retry recording" prompt.
+- **A2: Upload fails** → Save as draft for later retry.
+
+---
+
+# UC-06: Manage Personal Profile & Pin Videos
+
+## **Goal**
+Enable users to customise their profile and curate highlighted content.
+
+## **Primary Actor**
+User
+
+## **Main Flow**
+1. User opens Profile page.
+2. User taps **Edit profile** to change avatar, nickname, or bio.
+3. A list of all uploaded videos is shown.
+4. User taps **Pin** to place a video at the top of the profile.
+5. System updates the pinned video order instantly.
+6. “Today’s Video” section displays the current day’s upload.
+
+## **Alternative Flows**
+- **A1: No pinned videos** → System displays default placeholder.
+- **A2: Multiple pinned items** → Allow reordering by long-press and drag.
+
+---
+
+# UC-07: Earth Model Interaction (Optional for prototype)
+
+## **Goal**
+Provide a visual and interactive representation of global locations.
+
+## **Primary Actor**
+User
+
+## **Main Flow**
+1. A 3D/globe widget appears at the bottom of Home.
+2. Earth rotates to align with the user's location.
+3. Antipode location is marked with a pin.
+4. User clicks/hover pin → Shows region info (city, distance, timezone).
+5. User taps → Opens video feed for that region.
+
+## **Alternative Flows**
+- **A1: 3D model disabled (performance)** → Use static 2D map.
+
+---
+
+# Summary Table
+
+| Use Case | Description |
+|---------|-------------|
+| UC-01 | App launch & location/antipode initialisation |
+| UC-02 | Browse and interact with videos |
+| UC-03 | View another user’s profile |
+| UC-04 | Messaging & chat |
+| UC-05 | Record and upload video |
+| UC-06 | Manage profile & pin videos |
+| UC-07 | Earth model visual interaction |
+
+---
+
+# Document Status
+**Version:** Sprint 1  
+**Author:** Group 12 — Jiacheng Li 
+**Status:** Approved for Sprint 2 development
