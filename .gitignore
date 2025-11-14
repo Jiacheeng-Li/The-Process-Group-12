@@ -1,0 +1,30 @@
+# Qt
+*.pro.user*
+*.o
+*.moc
+moc_*.cpp
+ui_*.h
+build/
+debug/
+release/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Temporary files
+*.tmp
+*.log
