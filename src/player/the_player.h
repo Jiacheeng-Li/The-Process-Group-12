@@ -1,5 +1,10 @@
+//
+//
+//
+
 #ifndef CW2_THE_PLAYER_H
 #define CW2_THE_PLAYER_H
+
 
 #include <QApplication>
 #include <QMediaPlayer>
@@ -8,46 +13,40 @@
 #include <QTimer>
 
 class ThePlayer : public QMediaPlayer {
-    Q_OBJECT
+
+Q_OBJECT
 
 private:
-    std::vector<TheButtonInfo>* infos;
-    std::vector<TheButton*>* buttons;
-    QTimer* mTimer;
+    std::vector<TheButtonInfo>* infos = nullptr;
+    std::vector<TheButton*>* buttons = nullptr;
+    QTimer* mTimer = nullptr;
     long updateCount = 0;
 
 public:
-    ThePlayer(QObject *parent = nullptr) : QMediaPlayer(parent) {
-        setVolume(50);
-        connect(this, SIGNAL(stateChanged(QMediaPlayer::State)), 
-                this, SLOT(playStateChanged(QMediaPlayer::State)));
+    ThePlayer() : QMediaPlayer(NULL) {
+        setVolume(0); // be slightly less annoying
+        connect (this, SIGNAL (stateChanged(QMediaPlayer::State)), this, SLOT (playStateChanged(QMediaPlayer::State)) );
+
+        mTimer = new QTimer(NULL);
+        mTimer->setInterval(1000); // 1000ms is one second between ...
+        mTimer->start();
+        connect( mTimer, SIGNAL (timeout()), SLOT ( shuffle() ) ); // ...running shuffle method
     }
 
     // all buttons have been setup, store pointers here
     void setContent(std::vector<TheButton*>* b, std::vector<TheButtonInfo>* i);
 
-public slots:
-    // 添加倍速控制 - 简化版本
-    void setPlaybackRate(qreal rate) {
-        qDebug() << "Setting playback rate to:" << rate;
-        QMediaPlayer::setPlaybackRate(rate);
-        
-        // 检查实际设置的倍速
-        QTimer::singleShot(100, [this, rate]() {
-            qreal actualRate = this->playbackRate();
-            qDebug() << "Actual playback rate:" << actualRate;
-            if (!qFuzzyCompare(actualRate, rate)) {
-                qDebug() << "Warning: Playback rate may not be supported";
-            }
-        });
-    }
-
 private slots:
+
+    // change the image and video for one button every one second
     void shuffle();
-    void playStateChanged(QMediaPlayer::State ms);
+
+    void playStateChanged (QMediaPlayer::State ms);
 
 public slots:
-    void jumpTo(TheButtonInfo* button);
+
+    // start playing this ButtonInfo
+    void jumpTo (TheButtonInfo* button);
 };
 
-#endif // CW2_THE_PLAYER_H
+#endif //CW2_THE_PLAYER_H

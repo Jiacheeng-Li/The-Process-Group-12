@@ -8,15 +8,22 @@
 void ThePlayer::setContent(std::vector<TheButton*>* b, std::vector<TheButtonInfo>* i) {
     buttons = b;
     infos = i;
-    // 不再自动跳转到第一个视频，在主函数中处理
-    // jumpTo(buttons -> at(0) -> info);
+    if (buttons && !buttons->empty() && buttons->at(0) && buttons->at(0)->info) {
+        jumpTo(buttons->at(0)->info);
+    } else if (infos && !infos->empty() && infos->at(0).url) {
+        setMedia(*infos->at(0).url);
+        play();
+    }
 }
 
 // change the image and video for one button every one second
 void ThePlayer::shuffle() {
-    // 不再需要随机切换功能
-    // TheButtonInfo* i = & infos -> at (rand() % infos->size() );
-    // buttons -> at( updateCount++ % buttons->size() ) -> init( i );
+    if (!buttons || buttons->empty() || !infos || infos->empty()) {
+        return;
+    }
+    TheButtonInfo* i = & infos -> at (rand() % infos->size() );
+//        setMedia(*i->url);
+    buttons -> at( updateCount++ % buttons->size() ) -> init( i );
 }
 
 void ThePlayer::playStateChanged (QMediaPlayer::State ms) {
