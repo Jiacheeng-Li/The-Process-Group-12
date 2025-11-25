@@ -30,6 +30,9 @@
 #include "the_button.h"
 #include "profile_page.h"
 #include "chat_page.h"
+#include "recordpage.h"
+#include "publishpage.h"
+#include "friendspage.h"
 #include <QStackedWidget>
 #include <QButtonGroup>
 #include <QGraphicsDropShadowEffect>
@@ -148,7 +151,7 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
 int main(int argc, char *argv[]) {
 
     // let's just check that Qt is operational first
-    qDebug() << "Qt version: " << QT_VERSION_STR << endl;
+    qDebug() << "Qt version: " << QT_VERSION_STR;
 
     // create the Qt Application
     QApplication app(argc, argv);
@@ -321,7 +324,11 @@ int main(int argc, char *argv[]) {
     progressSlider->setObjectName("progressSlider");
     progressSlider->setRange(0, 0);
     progressSlider->setEnabled(!videos.empty());
+    progressSlider->setTracking(false);  // 禁用跟踪，只在释放时更新
     cardLayout->addWidget(progressSlider);
+    
+    // 用于跟踪用户是否正在拖动进度条
+    auto *isDragging = new bool(false);
 
     auto *controlRow = new QHBoxLayout();
     controlRow->setSpacing(12);
@@ -496,11 +503,18 @@ int main(int argc, char *argv[]) {
         muteButton->setText(checked ? QString::fromUtf8("取消静音") : QString::fromUtf8("静音"));
     });
 
-    QObject::connect(progressSlider, &QSlider::sliderReleased, [player, progressSlider]() {
-        player->setPosition(progressSlider->value());
+    // 进度条拖动处理
+    QObject::connect(progressSlider, &QSlider::sliderPressed, [isDragging]() {
+        *isDragging = true;
     });
-    QObject::connect(progressSlider, &QSlider::sliderMoved, [player](int value) {
-        player->setPosition(value);
+    QObject::connect(progressSlider, &QSlider::sliderMoved, [player, isDragging](int value) {
+        if (*isDragging) {
+            player->setPosition(value);
+        }
+    });
+    QObject::connect(progressSlider, &QSlider::sliderReleased, [player, progressSlider, isDragging]() {
+        *isDragging = false;
+        player->setPosition(progressSlider->value());
     });
 
     QObject::connect(player, &QMediaPlayer::durationChanged, [progressSlider](qint64 duration) {
@@ -510,8 +524,9 @@ int main(int argc, char *argv[]) {
         progressSlider->setMaximum(sliderMax);
         progressSlider->setEnabled(sliderMax > 0);
     });
-    QObject::connect(player, &QMediaPlayer::positionChanged, [progressSlider](qint64 position) {
-        if (!progressSlider->isSliderDown()) {
+    QObject::connect(player, &QMediaPlayer::positionChanged, [progressSlider, isDragging](qint64 position) {
+        // 只有在不是用户拖动的时候才更新进度条位置
+        if (!(*isDragging) && !progressSlider->isSliderDown()) {
             const int sliderPos = static_cast<int>(std::min<qint64>(position, std::numeric_limits<int>::max()));
             progressSlider->setValue(sliderPos);
         }
@@ -548,33 +563,33 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(player, &QMediaPlayer::mediaStatusChanged,
                      [setVideoStatus](QMediaPlayer::MediaStatus status) {
-        switch (status) {
-        case QMediaPlayer::LoadingMedia:
-        case QMediaPlayer::BufferedMedia:
-        case QMediaPlayer::StalledMedia:
-            setVideoStatus(QString::fromUtf8("加载中..."), true);
-            break;
-        case QMediaPlayer::EndOfMedia:
-            setVideoStatus(QString::fromUtf8("播放结束"), true);
-            break;
-        case QMediaPlayer::LoadedMedia:
-            setVideoStatus(QString(), false);
-            break;
-        default:
-            break;
-        }
-    });
+                         switch (status) {
+                         case QMediaPlayer::LoadingMedia:
+                         case QMediaPlayer::BufferedMedia:
+                         case QMediaPlayer::StalledMedia:
+                             setVideoStatus(QString::fromUtf8("加载中..."), true);
+                             break;
+                         case QMediaPlayer::EndOfMedia:
+                             setVideoStatus(QString::fromUtf8("播放结束"), true);
+                             break;
+                         case QMediaPlayer::LoadedMedia:
+                             setVideoStatus(QString(), false);
+                             break;
+                         default:
+                             break;
+                         }
+                     });
 
     QObject::connect(player, QOverload<QMediaPlayer::Error>::of(&QMediaPlayer::error),
                      [player, setVideoStatus](QMediaPlayer::Error error) {
-        if (error == QMediaPlayer::NoError) {
-            return;
-        }
-        const QString errText = player->errorString().isEmpty()
-                                    ? QString::fromUtf8("无法播放此视频")
-                                    : player->errorString();
-        setVideoStatus(QString::fromUtf8("播放失败: %1").arg(errText), true);
-    });
+                         if (error == QMediaPlayer::NoError) {
+                             return;
+                         }
+                         const QString errText = player->errorString().isEmpty()
+                                                     ? QString::fromUtf8("无法播放此视频")
+                                                     : player->errorString();
+                         setVideoStatus(QString::fromUtf8("播放失败: %1").arg(errText), true);
+                     });
 
     QObject::connect(player, &QMediaPlayer::stateChanged, [setVideoStatus](QMediaPlayer::State state) {
         if (state == QMediaPlayer::PlayingState) {
@@ -584,11 +599,17 @@ int main(int argc, char *argv[]) {
 
     ProfilePage *profilePage = new ProfilePage(videos);
     ChatPage *chatPage = new ChatPage();
+    FriendsPage *friendsPage = new FriendsPage(videos);  // 传递视频列表
+    RecordPage *recordPage = new RecordPage();
+    PublishPage *publishPage = new PublishPage();
 
     QStackedWidget *stackedPages = new QStackedWidget();
-    stackedPages->addWidget(homePage);
-    stackedPages->addWidget(profilePage);
-    stackedPages->addWidget(chatPage);
+    stackedPages->addWidget(homePage);      // 0: Home
+    stackedPages->addWidget(friendsPage);   // 1: Friends
+    stackedPages->addWidget(recordPage);    // 2: Record
+    stackedPages->addWidget(chatPage);      // 3: Chat
+    stackedPages->addWidget(profilePage);   // 4: Profile
+    stackedPages->addWidget(publishPage);   // 5: Publish (隐藏页面，通过信号跳转)
 
     QWidget window;
     window.setObjectName("appRoot");
@@ -598,302 +619,260 @@ int main(int argc, char *argv[]) {
     window.setLayout(top);
     window.setWindowTitle("tomeo");
     window.setMinimumSize(420, 720);
-    
-    // 智能查找assets目录：先查当前工作目录，再查exe所在目录，最后查源码目录
-    QString mapAssetPath;
-    QString appDir = QApplication::applicationDirPath();
-    QStringList searchPaths = {
-        QDir::currentPath() + "/assets/home_map.png",
-        appDir + "/assets/home_map.png",
-        appDir + "/../assets/home_map.png",
-        appDir + "/../../assets/home_map.png"
-    };
-    
-    for (const QString &path : searchPaths) {
-        if (QFile::exists(path)) {
-            mapAssetPath = path;
-            break;
-        }
-    }
-    
-    if (mapAssetPath.isEmpty()) {
-        qDebug() << "warning: missing home background art. Searched in:";
-        for (const QString &path : searchPaths) {
-            qDebug() << "  -" << path;
-        }
-        mapAssetPath = searchPaths.first(); // 使用第一个路径作为默认值
-    }
-    
-    // 将Windows路径转换为Qt样式表可用的格式
-    // 尝试使用相对路径，如果不行则使用绝对路径
-    QString mapUrl;
-    QDir appDirObj(appDir);
-    QString relativePath = appDirObj.relativeFilePath(mapAssetPath);
-    
-    // 如果相对路径合理（不超过父目录太多），使用相对路径
-    if (!relativePath.startsWith("..") || relativePath.count("../") < 3) {
-        relativePath.replace('\\', '/');
-        mapUrl = relativePath;
-        qDebug() << "Using relative path:" << mapUrl;
-    } else {
-        // 否则使用绝对路径，转换为正斜杠格式
-        QString normalizedPath = QDir::cleanPath(mapAssetPath);
-        mapUrl = normalizedPath;
-        mapUrl.replace('\\', '/');
-        qDebug() << "Using absolute path:" << mapUrl;
-    }
-    
-    // 验证文件是否存在并输出调试信息
-    if (!QFile::exists(mapAssetPath)) {
-        qDebug() << "Warning: Background image file not found:" << mapAssetPath;
-    } else {
-        qDebug() << "Background image file exists:" << mapAssetPath;
-        qDebug() << "Style sheet path:" << mapUrl;
-    }
-    
-    auto buildNightStyle = [&](const QString &map) {
+
+    const QString backgroundUrl(":/home/earth.png");
+
+    auto buildNightStyle = [&](const QString &bg) {
         return QString(
-            "QWidget#appRoot { background-color: #00040d; }"
-            "QWidget#homePage {"
-            "  background-color: #01030a;"
-            "  background-image: url(%1);"
-            "  background-position: center;"
-            "  background-repeat: no-repeat;"
-            "}"
-            "QLabel#heroTitle { font-size: 22px; font-weight: 700; color: white; }"
-            "QLabel#heroSubtitle { color: #6f84b8; }"
-            "QPushButton#settingsButton {"
-            "  background-color: rgba(15,30,55,0.85);"
-            "  color: white;"
-            "  border: 1px solid rgba(63,134,255,0.35);"
-            "  border-radius: 22px;"
-            "  padding: 10px 22px;"
-            "  font-weight: 600;"
-            "}"
-            "QPushButton#settingsButton:hover { background-color: rgba(59,124,220,0.65); }"
-            "QFrame#berealCard {"
-            "  background: rgba(2,8,20,0.92);"
-            "  border-radius: 40px;"
-            "  border: 1px solid rgba(63,134,255,0.35);"
-            "  outline: 1px solid rgba(2,4,12,0.6);"
-            "}"
-            "QLabel#displayName { color: white; font-size: 18px; font-weight: 700; }"
-            "QLabel#dropMeta { color: #8aa7d9; }"
-            "QLabel#momentLabel { color: #9db6ff; font-weight: 600; }"
-            "QFrame#captureFrame { background: black; border-radius: 32px; }"
-            "QVideoWidget#homeVideo { border-radius: 32px; background-color: black; }"
-            "QWidget#captureOverlay { border-radius: 32px; }"
-            "QLabel#lateBadge {"
-            "  background-color: rgba(255,255,255,0.12);"
-            "  color: #93caff;"
-            "  border-radius: 18px;"
-            "  padding: 6px 14px;"
-            "  font-weight: 600;"
-            "}"
-            "QLabel#networkBadge { color: #8aa7d9; }"
-            "QLabel#videoStatusLabel {"
-            "  background-color: rgba(0,0,0,0.55);"
-            "  color: white;"
-            "  font-size: 16px;"
-            "  font-weight: 600;"
-            "  padding: 10px 24px;"
-            "  border-radius: 24px;"
-            "}"
-            "QLabel#selfieBubble {"
-            "  background-color: rgba(5,10,22,0.85);"
-            "  color: white;"
-            "  border: 2px solid rgba(157,182,255,0.4);"
-            "  border-radius: 28px;"
-            "  font-weight: 600;"
-            "}"
-            "QFrame#metaFooter { color: #8aa7d9; }"
-            "QLabel#metaLabel { color: #8aa7d9; }"
-            "QPushButton#shareNowButton {"
-            "  background-color: rgba(59,124,220,0.9);"
-            "  color: white;"
-            "  border: none;"
-            "  border-radius: 20px;"
-            "  padding: 8px 20px;"
-            "  font-weight: 600;"
-            "}"
-            "QSlider#progressSlider::groove {"
-            "  height: 4px;"
-            "  background: rgba(255,255,255,0.18);"
-            "  border-radius: 2px;"
-            "}"
-            "QSlider#progressSlider::handle {"
-            "  width: 16px;"
-            "  background: rgba(255,255,255,0.9);"
-            "  border-radius: 8px;"
-            "  margin: -6px 0;"
-            "}"
-            "QSlider#progressSlider::sub-page {"
-            "  background: rgba(93,155,255,0.85);"
-            "  border-radius: 2px;"
-            "}"
-            "QPushButton#pillButton {"
-            "  background-color: rgba(24,72,156,0.85);"
-            "  color: white;"
-            "  border: none;"
-            "  border-radius: 18px;"
-            "  padding: 10px 18px;"
-            "  font-weight: 600;"
-            "}"
-            "QPushButton#pillButton:hover { background-color: rgba(59,124,220,0.95); }"
-            "QPushButton#pillButton:checked { background-color: rgba(255,255,255,0.12); color: #9db6ff; }"
-            "QLabel#reactionPrompt { color: #8aa7d9; }"
-            "QPushButton#reactionButton {"
-            "  background-color: rgba(6,16,34,0.9);"
-            "  color: white;"
-            "  border: 1px solid rgba(157,182,255,0.3);"
-            "  border-radius: 16px;"
-            "  padding: 6px 12px;"
-            "  font-size: 18px;"
-            "}"
-            "QFrame#commentPanel {"
-            "  background: rgba(4,12,26,0.95);"
-            "  border-radius: 26px;"
-            "  border: 1px solid rgba(63,134,255,0.3);"
-            "}"
-            "QLabel#captionLabel { color: white; font-size: 16px; font-weight: 600; }"
-            "QLabel#commentLabel { color: #9fb1d6; }"
-            "QPushButton#replyButton {"
-            "  background: transparent;"
-            "  color: #9db6ff;"
-            "  border: none;"
-            "  font-weight: 600;"
-            "}"
-            "QFrame#floatingNav {"
-            "  background-color: rgba(4,10,20,0.92);"
-            "  border-radius: 28px;"
-            "  border: 1px solid rgba(47,141,255,0.25);"
-            "}"
-            "QPushButton#navButton {"
-            "  color: #6e85b8;"
-            "  background: transparent;"
-            "  border: none;"
-            "  font-size: 14px;"
-            "  font-weight: 600;"
-            "  padding: 12px 18px;"
-            "  border-radius: 18px;"
-            "}"
-            "QPushButton#navButton:hover { color: #9db6ff; }"
+                   "QWidget#appRoot {"
+                   "  background-color: #00040d;"
+                   "}"
+                   "QWidget#homePage {"
+                   "  background-color: rgba(1,3,10,0.2);"
+                   "  background-image: url(%1);"
+                   "  background-repeat: no-repeat;"
+                   "  background-position: center center;"
+                   "  background-size: contain;"
+                   "  background-attachment: fixed;"
+                   "}"
+                   "QLabel#heroTitle { font-size: 22px; font-weight: 700; color: white; }"
+                   "QLabel#heroSubtitle { color: #6f84b8; }"
+                   "QPushButton#settingsButton {"
+                   "  background-color: rgba(15,30,55,0.85);"
+                   "  color: white;"
+                   "  border: 1px solid rgba(63,134,255,0.35);"
+                   "  border-radius: 22px;"
+                   "  padding: 10px 22px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QPushButton#settingsButton:hover { background-color: rgba(59,124,220,0.65); }"
+                   "QFrame#berealCard {"
+                   "  background: rgba(2,8,20,0.92);"
+                   "  border-radius: 40px;"
+                   "  border: 1px solid rgba(63,134,255,0.35);"
+                   "  outline: 1px solid rgba(2,4,12,0.6);"
+                   "}"
+                   "QLabel#displayName { color: white; font-size: 18px; font-weight: 700; }"
+                   "QLabel#dropMeta { color: #8aa7d9; }"
+                   "QLabel#momentLabel { color: #9db6ff; font-weight: 600; }"
+                   "QFrame#captureFrame { background: black; border-radius: 32px; }"
+                   "QVideoWidget#homeVideo { border-radius: 32px; background-color: black; }"
+                   "QWidget#captureOverlay { border-radius: 32px; }"
+                   "QLabel#lateBadge {"
+                   "  background-color: rgba(255,255,255,0.12);"
+                   "  color: #93caff;"
+                   "  border-radius: 18px;"
+                   "  padding: 6px 14px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QLabel#networkBadge { color: #8aa7d9; }"
+                   "QLabel#videoStatusLabel {"
+                   "  background-color: rgba(0,0,0,0.55);"
+                   "  color: white;"
+                   "  font-size: 16px;"
+                   "  font-weight: 600;"
+                   "  padding: 10px 24px;"
+                   "  border-radius: 24px;"
+                   "}"
+                   "QLabel#selfieBubble {"
+                   "  background-color: rgba(5,10,22,0.85);"
+                   "  color: white;"
+                   "  border: 2px solid rgba(157,182,255,0.4);"
+                   "  border-radius: 28px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QFrame#metaFooter { color: #8aa7d9; }"
+                   "QLabel#metaLabel { color: #8aa7d9; }"
+                   "QPushButton#shareNowButton {"
+                   "  background-color: rgba(59,124,220,0.9);"
+                   "  color: white;"
+                   "  border: none;"
+                   "  border-radius: 20px;"
+                   "  padding: 8px 20px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QSlider#progressSlider::groove {"
+                   "  height: 4px;"
+                   "  background: rgba(255,255,255,0.18);"
+                   "  border-radius: 2px;"
+                   "}"
+                   "QSlider#progressSlider::handle {"
+                   "  width: 16px;"
+                   "  background: rgba(255,255,255,0.9);"
+                   "  border-radius: 8px;"
+                   "  margin: -6px 0;"
+                   "}"
+                   "QSlider#progressSlider::sub-page {"
+                   "  background: rgba(93,155,255,0.85);"
+                   "  border-radius: 2px;"
+                   "}"
+                   "QPushButton#pillButton {"
+                   "  background-color: rgba(24,72,156,0.85);"
+                   "  color: white;"
+                   "  border: none;"
+                   "  border-radius: 18px;"
+                   "  padding: 10px 18px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QPushButton#pillButton:hover { background-color: rgba(59,124,220,0.95); }"
+                   "QPushButton#pillButton:checked { background-color: rgba(255,255,255,0.12); color: #9db6ff; }"
+                   "QLabel#reactionPrompt { color: #8aa7d9; }"
+                   "QPushButton#reactionButton {"
+                   "  background-color: rgba(6,16,34,0.9);"
+                   "  color: white;"
+                   "  border: 1px solid rgba(157,182,255,0.3);"
+                   "  border-radius: 16px;"
+                   "  padding: 6px 12px;"
+                   "  font-size: 18px;"
+                   "}"
+                   "QFrame#commentPanel {"
+                   "  background: rgba(4,12,26,0.95);"
+                   "  border-radius: 26px;"
+                   "  border: 1px solid rgba(63,134,255,0.3);"
+                   "}"
+                   "QLabel#captionLabel { color: white; font-size: 16px; font-weight: 600; }"
+                   "QLabel#commentLabel { color: #9fb1d6; }"
+                   "QPushButton#replyButton {"
+                   "  background: transparent;"
+                   "  color: #9db6ff;"
+                   "  border: none;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QFrame#floatingNav {"
+                   "  background-color: rgba(4,10,20,0.92);"
+                   "  border-radius: 28px;"
+                   "  border: 1px solid rgba(47,141,255,0.25);"
+                   "}"
+                   "QPushButton#navButton {"
+                   "  color: #6e85b8;"
+                   "  background: transparent;"
+                   "  border: none;"
+                   "  font-size: 14px;"
+                   "  font-weight: 600;"
+                   "  padding: 12px 18px;"
+                   "  border-radius: 18px;"
+                   "}"
+                   "QPushButton#navButton:hover { color: #9db6ff; }"
             "QPushButton#navButton:checked {"
-            "  color: white;"
-            "  background-color: rgba(47,141,255,0.2);"
-            "}"
-        ).arg(map);
+                   "  color: white;"
+                   "  background-color: rgba(47,141,255,0.2);"
+                   "}"
+        ).arg(bg);
     };
 
-    auto buildDayStyle = [&](const QString &map) {
+    auto buildDayStyle = [&](const QString &bg) {
         return QString(
-            "QWidget#appRoot { background-color: #f4f7ff; }"
-            "QWidget#homePage {"
-            "  background-color: #e7edf7;"
+            "QWidget#appRoot {"
+            "  background-color: #f4f7ff;"
+            "}"
+                   "QWidget#homePage {"
+            "  background-color: rgba(231,237,247,0.2);"
             "  background-image: url(%1);"
-            "  background-position: center;"
             "  background-repeat: no-repeat;"
-            "}"
-            "QLabel#heroTitle { font-size: 22px; font-weight: 700; color: #0c1b33; }"
-            "QLabel#heroSubtitle { color: #4f5f7f; }"
-            "QPushButton#settingsButton {"
-            "  background-color: rgba(255,255,255,0.95);"
-            "  color: #20324f;"
-            "  border: 1px solid rgba(58,82,132,0.25);"
-            "  border-radius: 22px;"
-            "  padding: 10px 22px;"
-            "  font-weight: 600;"
-            "}"
-            "QFrame#berealCard {"
-            "  background: rgba(255,255,255,0.92);"
-            "  border-radius: 40px;"
-            "  border: 1px solid rgba(88,118,178,0.2);"
-            "}"
-            "QLabel#displayName { color: #0c1b33; }"
-            "QLabel#dropMeta { color: #5f6d8c; }"
-            "QLabel#momentLabel { color: #3353b3; font-weight: 600; }"
-            "QFrame#captureFrame { background: #000; border-radius: 32px; }"
-            "QVideoWidget#homeVideo { border-radius: 32px; }"
-            "QLabel#lateBadge { background-color: rgba(255,255,255,0.85); color: #2f4ea7; }"
-            "QLabel#networkBadge { color: #5f6d8c; }"
-            "QLabel#videoStatusLabel { background-color: rgba(12,18,40,0.55); color: white; }"
-            "QLabel#selfieBubble {"
-            "  background-color: rgba(255,255,255,0.9);"
-            "  color: #20324f;"
-            "  border: 2px solid rgba(58,82,132,0.25);"
-            "  border-radius: 28px;"
-            "}"
-            "QFrame#metaFooter { color: #5f6d8c; }"
-            "QLabel#metaLabel { color: #5f6d8c; }"
-            "QPushButton#shareNowButton {"
-            "  background-color: #3353b3;"
-            "  color: white;"
-            "  border: none;"
-            "  border-radius: 20px;"
-            "  padding: 8px 20px;"
-            "  font-weight: 600;"
-            "}"
-            "QSlider#progressSlider::groove { background: rgba(32,50,90,0.15); height: 4px; border-radius: 2px; }"
-            "QSlider#progressSlider::handle { width: 16px; background: #3353b3; border-radius: 8px; margin: -6px 0; }"
-            "QSlider#progressSlider::sub-page { background: #6f8dff; border-radius: 2px; }"
-            "QPushButton#pillButton {"
-            "  background-color: rgba(14,28,72,0.08);"
-            "  color: #0c1b33;"
-            "  border: 1px solid rgba(12,27,51,0.08);"
-            "  border-radius: 18px;"
-            "  padding: 10px 18px;"
-            "  font-weight: 600;"
-            "}"
-            "QPushButton#pillButton:hover { background-color: rgba(51,83,179,0.15); }"
-            "QPushButton#pillButton:checked { background-color: rgba(51,83,179,0.2); color: #20324f; }"
-            "QLabel#reactionPrompt { color: #5f6d8c; }"
-            "QPushButton#reactionButton {"
-            "  background-color: rgba(255,255,255,0.95);"
-            "  color: #20324f;"
-            "  border: 1px solid rgba(58,82,132,0.2);"
-            "  border-radius: 16px;"
-            "  padding: 6px 12px;"
-            "  font-size: 18px;"
-            "}"
-            "QFrame#commentPanel {"
-            "  background: rgba(255,255,255,0.92);"
-            "  border-radius: 26px;"
-            "  border: 1px solid rgba(88,118,178,0.2);"
-            "}"
-            "QLabel#captionLabel { color: #0c1b33; }"
-            "QLabel#commentLabel { color: #4f5f7f; }"
-            "QPushButton#replyButton {"
-            "  background: transparent;"
-            "  color: #3353b3;"
-            "  border: none;"
-            "  font-weight: 600;"
-            "}"
-            "QFrame#floatingNav {"
-            "  background-color: rgba(255,255,255,0.92);"
-            "  border-radius: 28px;"
-            "  border: 1px solid rgba(58,82,132,0.2);"
-            "}"
-            "QPushButton#navButton {"
-            "  color: #51658c;"
-            "  background: transparent;"
-            "  border: none;"
-            "  font-size: 14px;"
-            "  font-weight: 600;"
-            "  padding: 12px 18px;"
-            "  border-radius: 18px;"
-            "}"
-            "QPushButton#navButton:hover { color: #20324f; }"
+            "  background-position: center center;"
+            "  background-size: contain;"
+            "  background-attachment: fixed;"
+                   "}"
+                   "QLabel#heroTitle { font-size: 22px; font-weight: 700; color: #0c1b33; }"
+                   "QLabel#heroSubtitle { color: #4f5f7f; }"
+                   "QPushButton#settingsButton {"
+                   "  background-color: rgba(255,255,255,0.95);"
+                   "  color: #20324f;"
+                   "  border: 1px solid rgba(58,82,132,0.25);"
+                   "  border-radius: 22px;"
+                   "  padding: 10px 22px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QFrame#berealCard {"
+                   "  background: rgba(255,255,255,0.92);"
+                   "  border-radius: 40px;"
+                   "  border: 1px solid rgba(88,118,178,0.2);"
+                   "}"
+                   "QLabel#displayName { color: #0c1b33; }"
+                   "QLabel#dropMeta { color: #5f6d8c; }"
+                   "QLabel#momentLabel { color: #3353b3; font-weight: 600; }"
+                   "QFrame#captureFrame { background: #000; border-radius: 32px; }"
+                   "QVideoWidget#homeVideo { border-radius: 32px; }"
+                   "QLabel#lateBadge { background-color: rgba(255,255,255,0.85); color: #2f4ea7; }"
+                   "QLabel#networkBadge { color: #5f6d8c; }"
+                   "QLabel#videoStatusLabel { background-color: rgba(12,18,40,0.55); color: white; }"
+                   "QLabel#selfieBubble {"
+                   "  background-color: rgba(255,255,255,0.9);"
+                   "  color: #20324f;"
+                   "  border: 2px solid rgba(58,82,132,0.25);"
+                   "  border-radius: 28px;"
+                   "}"
+                   "QFrame#metaFooter { color: #5f6d8c; }"
+                   "QLabel#metaLabel { color: #5f6d8c; }"
+                   "QPushButton#shareNowButton {"
+                   "  background-color: #3353b3;"
+                   "  color: white;"
+                   "  border: none;"
+                   "  border-radius: 20px;"
+                   "  padding: 8px 20px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QSlider#progressSlider::groove { background: rgba(32,50,90,0.15); height: 4px; border-radius: 2px; }"
+                   "QSlider#progressSlider::handle { width: 16px; background: #3353b3; border-radius: 8px; margin: -6px 0; }"
+                   "QSlider#progressSlider::sub-page { background: #6f8dff; border-radius: 2px; }"
+                   "QPushButton#pillButton {"
+                   "  background-color: rgba(14,28,72,0.08);"
+                   "  color: #0c1b33;"
+                   "  border: 1px solid rgba(12,27,51,0.08);"
+                   "  border-radius: 18px;"
+                   "  padding: 10px 18px;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QPushButton#pillButton:hover { background-color: rgba(51,83,179,0.15); }"
+                   "QPushButton#pillButton:checked { background-color: rgba(51,83,179,0.2); color: #20324f; }"
+                   "QLabel#reactionPrompt { color: #5f6d8c; }"
+                   "QPushButton#reactionButton {"
+                   "  background-color: rgba(255,255,255,0.95);"
+                   "  color: #20324f;"
+                   "  border: 1px solid rgba(58,82,132,0.2);"
+                   "  border-radius: 16px;"
+                   "  padding: 6px 12px;"
+                   "  font-size: 18px;"
+                   "}"
+                   "QFrame#commentPanel {"
+                   "  background: rgba(255,255,255,0.92);"
+                   "  border-radius: 26px;"
+                   "  border: 1px solid rgba(88,118,178,0.2);"
+                   "}"
+                   "QLabel#captionLabel { color: #0c1b33; }"
+                   "QLabel#commentLabel { color: #4f5f7f; }"
+                   "QPushButton#replyButton {"
+                   "  background: transparent;"
+                   "  color: #3353b3;"
+                   "  border: none;"
+                   "  font-weight: 600;"
+                   "}"
+                   "QFrame#floatingNav {"
+                   "  background-color: rgba(255,255,255,0.92);"
+                   "  border-radius: 28px;"
+                   "  border: 1px solid rgba(58,82,132,0.2);"
+                   "}"
+                   "QPushButton#navButton {"
+                   "  color: #51658c;"
+                   "  background: transparent;"
+                   "  border: none;"
+                   "  font-size: 14px;"
+                   "  font-weight: 600;"
+                   "  padding: 12px 18px;"
+                   "  border-radius: 18px;"
+                   "}"
+                   "QPushButton#navButton:hover { color: #20324f; }"
             "QPushButton#navButton:checked {"
-            "  color: white;"
-            "  background-color: rgba(51,83,179,0.8);"
-            "}"
-        ).arg(map);
+                   "  color: white;"
+                   "  background-color: rgba(51,83,179,0.8);"
+                   "}"
+        ).arg(bg);
     };
 
     bool nightMode = true;
     auto applyTheme = [&](bool night) {
         nightMode = night;
-        window.setStyleSheet(night ? buildNightStyle(mapUrl) : buildDayStyle(mapUrl));
+        window.setStyleSheet(night ? buildNightStyle(backgroundUrl) : buildDayStyle(backgroundUrl));
     };
     applyTheme(true);
 
@@ -922,15 +901,20 @@ int main(int argc, char *argv[]) {
 
     QPushButton *profileNavButton = nullptr;
     QPushButton *homeNavButton = nullptr;
+    QPushButton *friendsNavButton = nullptr;
+    QPushButton *recordNavButton = nullptr;
+    QPushButton *chatNavButton = nullptr;
 
     struct NavSpec {
         QString label;
         int index;
     };
     const std::vector<NavSpec> navSpecs = {
-        {"Home", 0},
-        {"Profile", 1},
-        {"Chat", 2}
+        {QString::fromUtf8("主页"), 0},      // Home
+        {QString::fromUtf8("朋友圈"), 1},    // Friends
+        {QString::fromUtf8("录制"), 2},      // Record
+        {QString::fromUtf8("聊天"), 3},      // Chat
+        {QString::fromUtf8("个人"), 4}       // Profile
     };
 
     QPushButton *firstButton = nullptr;
@@ -949,12 +933,21 @@ int main(int argc, char *argv[]) {
             }
         });
 
-        if (spec.label == "Profile") {
+        // 处理导航栏按钮引用
+        if (targetIndex == 0) {
+            homeNavButton = button;
+        } else if (targetIndex == 1) {
+            friendsNavButton = button;
+        } else if (targetIndex == 2) {
+            recordNavButton = button;
+        } else if (targetIndex == 3) {
+            chatNavButton = button;
+        } else if (targetIndex == 4) {
             profileNavButton = button;
         }
+
         if (!firstButton) {
             firstButton = button;
-            homeNavButton = button;
         }
     }
 
@@ -974,6 +967,38 @@ int main(int argc, char *argv[]) {
 
     top->addWidget(navWrapper, 0, Qt::AlignBottom);
 
+    // 页面跳转逻辑：Record -> Publish
+    QObject::connect(recordPage, &RecordPage::recordingFinished, [&](){
+        stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
+    });
+
+    // 页面跳转逻辑：Publish -> Friends
+    QObject::connect(publishPage, &PublishPage::sendPressed,
+                     [&](const QString &thumb){
+                         friendsPage->addNewPost(thumb);
+                         if (friendsNavButton) {
+                             friendsNavButton->setChecked(true);
+                         } else {
+                             stackedPages->setCurrentIndex(1);  // Friends 页面
+                         }
+                     });
+
+    // 页面跳转逻辑：Publish -> Record (返回)
+    QObject::connect(publishPage, &PublishPage::backToRecord, [&](){
+        if (recordNavButton) {
+            recordNavButton->setChecked(true);
+        } else {
+            stackedPages->setCurrentIndex(2);  // Record 页面
+        }
+    });
+
+    // 页面跳转逻辑：Record -> Publish (选择草稿)
+    QObject::connect(recordPage, &RecordPage::draftSelected, [&](const QString &draftText){
+        publishPage->loadDraft(draftText);
+        stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
+    });
+
+    // Profile 页面播放视频请求
     if (profilePage) {
         QObject::connect(profilePage, &ProfilePage::playVideoRequested, &window, [&, homeNavButton](int index) {
             if (homeNavButton && !homeNavButton->isChecked()) {
@@ -984,6 +1009,15 @@ int main(int argc, char *argv[]) {
             playVideoAt(index);
         });
     }
+
+    // Friends 页面跳转到 Profile（如果需要）
+    QObject::connect(friendsPage, &FriendsPage::goToProfile, [&](const QString &username) {
+        if (profileNavButton) {
+            profileNavButton->setChecked(true);
+        } else {
+            stackedPages->setCurrentIndex(4);  // Profile 页面
+        }
+    });
 
     if (settingsButton) {
         QMenu *settingsMenu = new QMenu(settingsButton);

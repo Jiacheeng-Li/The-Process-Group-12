@@ -26,6 +26,7 @@ signals:
 
 public slots:
     void addComment(const QString &text);
+    void setThumbnail(const QPixmap &pixmap);  // 设置缩略图
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
