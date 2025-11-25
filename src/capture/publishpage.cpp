@@ -3,14 +3,16 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QVBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QCheckBox>
 #include <QRadioButton>      // <<< ★ 新增的头文件（解决你的报错）
+#include <QRegExp>
+#include "recordpage.h"
 
 PublishPage::PublishPage(QWidget *parent)
     : QWidget(parent)
 {
-    setMinimumSize(1260,760);
 
     inputBar = new QLineEdit(this);
     inputBar->setPlaceholderText("Write something...");
@@ -23,7 +25,31 @@ PublishPage::PublishPage(QWidget *parent)
     bar5->setIcon(QIcon(":/icons/icons/volume.svg"));
     bar6->setIcon(QIcon(":/icons/icons/close.svg"));
     bar7->setIcon(QIcon(":/icons/icons/share.svg"));
-    connect(bar6, &QPushButton::clicked, this, &PublishPage::backToRecord);
+    connect(bar6, &QPushButton::clicked, [this](){
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("取消发布");
+        msgBox.setText("请选择：");
+        QPushButton *saveDraft = msgBox.addButton("保存到草稿", QMessageBox::ActionRole);
+        QPushButton *goBack    = msgBox.addButton("跳回录制页", QMessageBox::ActionRole);
+        QPushButton *cancelBtn = msgBox.addButton("取消", QMessageBox::RejectRole);
+
+        msgBox.exec();
+
+        if (msgBox.clickedButton() == saveDraft) {
+            draftBuffer = inputBar->text();
+            // 保存草稿到草稿箱
+            RecordPage::addDraft(draftBuffer);
+            QMessageBox::information(this,"草稿","内容已保存到草稿！");
+            emit backToRecord();  // 保存草稿后也返回录制页
+            return;
+        }
+        if (msgBox.clickedButton() == goBack) {
+            emit backToRecord();
+            return;
+        }
+        // cancel → 什么都不做
+    });
+
 
     phoneFrame = new QWidget(this);
     phoneFrame->setStyleSheet("background:#f0f0f0;border:4px solid #222;border-radius:20px;");
@@ -104,11 +130,16 @@ void PublishPage::onTagClicked()
         panelTag->setTitle("选择标签");
 
         QWidget *box = new QWidget;
-        QVBoxLayout *lay = new QVBoxLayout(box);
+        QGridLayout *grid = new QGridLayout(box);
+        grid->setContentsMargins(10, 10, 10, 10);
+        grid->setHorizontalSpacing(16);
+        grid->setVerticalSpacing(8);
         QStringList list = {"美食","旅行","冬天","校园","游戏","健身","打卡","学习","Vlog","情绪","随笔"};
 
-        for (auto &t: list){
+        for (int i = 0; i < list.size(); ++i){
+            const QString &t = list.at(i);
             QCheckBox *ck = new QCheckBox(t,box);
+            ck->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
             connect(ck,&QCheckBox::stateChanged,[=](){
                 if (ck->isChecked()) {
                     if (!selectedTags.contains(t)) selectedTags.append(t);
@@ -117,7 +148,9 @@ void PublishPage::onTagClicked()
                 }
                 updateInputBar();
             });
-            lay->addWidget(ck);
+            int row = i / 2;
+            int col = i % 2;
+            grid->addWidget(ck, row, col);
         }
 
         panelTag->setContent(box);
@@ -134,6 +167,8 @@ void PublishPage::onMentionClicked()
 
         QWidget *box = new QWidget;
         QVBoxLayout *lay = new QVBoxLayout(box);
+        lay->setSpacing(6);
+        lay->setContentsMargins(8, 8, 8, 8);
         QStringList list = {"Alice","Bob","Chris","David","Emily","Frank","Grace"};
 
         for (auto &f: list){
@@ -177,8 +212,8 @@ void PublishPage::onPrivacyClicked()
 void PublishPage::onLocationClicked()
 {
     isLocationOn = !isLocationOn;
-    btn4->setIcon(QIcon(isLocationOn ? ":/icons/location_on.svg"
-                                     : ":/icons/location_off.svg"));
+    btn4->setIcon(QIcon(isLocationOn ? ":/icons/icons/location_on.svg"
+                                     : ":/icons/icons/location_off.svg"));
 }
 
 /* ------------ 分享 ------------ */
@@ -189,11 +224,20 @@ void PublishPage::onShareClicked()
         panelShare->setTitle("分享到");
 
         QWidget *box = new QWidget;
-        QVBoxLayout *lay = new QVBoxLayout(box);
+        QGridLayout *grid = new QGridLayout(box);
+        grid->setContentsMargins(10, 10, 10, 10);
+        grid->setHorizontalSpacing(16);
+        grid->setVerticalSpacing(8);
         QStringList list = {"Instagram","Tinder","X (Twitter)","Telegram","微信","B站"};
 
-        for (auto &p: list)
-            lay->addWidget(new QLabel("• " + p));
+        for (int i = 0; i < list.size(); ++i) {
+            const QString &p = list.at(i);
+            QLabel *label = new QLabel("• " + p, box);
+            label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+            int row = i / 2;
+            int col = i % 2;
+            grid->addWidget(label, row, col);
+        }
 
         QPushButton *ok = new QPushButton("确定转发");
         QPushButton *cancel = new QPushButton("取消");
@@ -202,8 +246,9 @@ void PublishPage::onShareClicked()
             QMessageBox::information(this,"分享","已同步分享到其他平台！");
             panelShare->hidePanel();
         });
-        lay->addWidget(ok);
-        lay->addWidget(cancel);
+        // 按钮放在最后一行，跨两列
+        grid->addWidget(ok, (list.size() + 1) / 2, 0, 1, 2);
+        grid->addWidget(cancel, (list.size() + 1) / 2 + 1, 0, 1, 2);
 
         panelShare->setContent(box);
     }
@@ -235,54 +280,103 @@ void PublishPage::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
 
-    int W = width();
-    int H = height();
+    const int W = width();
+    const int H = height();
+    const int outerMargin = qMax(32, W / 18);
+    const int topMargin = 28;
+    const int gap = 20;
+    const int iconSize = 46;
+    const int iconGap = 10;
 
-    const int topMargin = 20;
-    const int gap       = 18;
+    // 计算手机框尺寸（保持与 Record 页类似的响应方式）
+    int maxFrameW = W - outerMargin * 2;
+    int frameH = qBound(360, static_cast<int>(H * 0.62), H - 240);
+    int frameW = qMin(maxFrameW, static_cast<int>(frameH * 9.0 / 16.0));
+    frameH = static_cast<int>(frameW * 16.0 / 9.0);
+    int frameLeft = (W - frameW) / 2;
 
-    int maxContentW = 440;
-    int totalW      = qMin(W - 40, maxContentW);
-    if (totalW < 320)
-        totalW = W - 40;
+    // 输入栏与图标按钮（同一行，左右对齐手机框）
+    const int iconsTotalWidth = iconSize * 3 + iconGap * 2;
+    int iconsStartX = frameLeft + frameW - iconsTotalWidth;
+    iconsStartX = qMax(frameLeft + iconGap, iconsStartX);
+    bar5->setGeometry(iconsStartX, topMargin, iconSize, iconSize);
+    bar6->setGeometry(iconsStartX + iconSize + iconGap, topMargin, iconSize, iconSize);
+    bar7->setGeometry(iconsStartX + 2 * (iconSize + iconGap), topMargin, iconSize, iconSize);
 
-    int leftX = (W - totalW) / 2;
+    int inputWidth = iconsStartX - iconGap - frameLeft;
+    inputWidth = qMax(200, inputWidth);
+    inputBar->setGeometry(frameLeft, topMargin, inputWidth, iconSize);
 
-    int iconBtnSize = 44;
-    int y1 = topMargin;
-    int inputW = totalW - iconBtnSize * 3 - gap * 2;
+    int frameTop = topMargin + iconSize + gap;
 
-    inputBar->setGeometry(leftX, y1, inputW, iconBtnSize);
+    phoneFrame->setGeometry(frameLeft, frameTop, frameW, frameH);
 
-    int firstIconX = leftX + inputW + gap;
-    int iconGap = 8;
-    bar5->setGeometry(firstIconX, y1, iconBtnSize, iconBtnSize);
-    bar6->setGeometry(firstIconX + iconBtnSize + iconGap, y1, iconBtnSize, iconBtnSize);
-    bar7->setGeometry(firstIconX + (iconBtnSize + iconGap) * 2, y1, iconBtnSize, iconBtnSize);
-
-    int y2 = y1 + iconBtnSize + gap;
-    int phoneH = static_cast<int>(H * 0.48);
-    phoneFrame->setGeometry(leftX, y2, totalW, phoneH);
-
-    backCamera->setGeometry(10, 10, totalW - 20, phoneH - 20);
+    int frameMargin = 10;
+    backCamera->setGeometry(frameMargin, frameMargin, frameW - frameMargin * 2, frameH - frameMargin * 2);
     frontCamera->setGeometry(
-        18, 18,
-        static_cast<int>((totalW - 20) * 0.28),
-        static_cast<int>((phoneH - 20) * 0.32)
+        frameMargin + 10,
+        frameMargin + 10,
+        qMax(80, static_cast<int>((frameW - frameMargin * 2) * 0.3)),
+        qMax(60, static_cast<int>((frameH - frameMargin * 2) * 0.3))
         );
 
-    int y3 = y2 + phoneH + gap;
-    int tagH = 44;
-    int spacing3 = 12;
-    int tagW = (totalW - spacing3 * 3) / 4;
+    int y = frameTop + frameH + gap;
 
-    int x3 = (W - totalW) / 2;
-    btn1->setGeometry(x3, y3, tagW, tagH);
-    btn2->setGeometry(x3 + (tagW + spacing3), y3, tagW, tagH);
-    btn3->setGeometry(x3 + 2 * (tagW + spacing3), y3, tagW, tagH);
-    btn4->setGeometry(x3 + 3 * (tagW + spacing3), y3, tagW, tagH);
+    // 工具按钮（Tag 等）
+    const int tagH = 46;
+    const int tagSpacing = 12;
+    int eachTagW = (frameW - tagSpacing * 3) / 4;
+    eachTagW = qMax(88, eachTagW);
 
-    int y4 = y3 + tagH + gap;
-    sendButton->setGeometry((W - totalW) / 2, y4, totalW, 52);
+    btn1->setGeometry(frameLeft, y, eachTagW, tagH);
+    btn2->setGeometry(frameLeft + (eachTagW + tagSpacing), y, eachTagW, tagH);
+    btn3->setGeometry(frameLeft + 2 * (eachTagW + tagSpacing), y, eachTagW, tagH);
+    btn4->setGeometry(frameLeft + 3 * (eachTagW + tagSpacing), y, eachTagW, tagH);
+
+    y += tagH + gap;
+
+    // 发送按钮
+    sendButton->setGeometry(frameLeft, y, frameW, 54);
+}
+
+void PublishPage::loadDraft(const QString &draftText)
+{
+    // 清空当前内容
+    selectedTags.clear();
+    selectedFriends.clear();
+    userText = "";
+    draftBuffer = "";
+    
+    // 加载草稿文本
+    blockTextSignal = true;
+    inputBar->setText(draftText);
+    blockTextSignal = false;
+    
+    // 解析草稿中的标签和好友（简单实现）
+    QString text = draftText;
+    // 提取标签 #tag
+    QRegExp tagRegex("#(\\w+)");
+    int pos = 0;
+    while ((pos = tagRegex.indexIn(text, pos)) != -1) {
+        QString tag = tagRegex.cap(1);
+        if (!selectedTags.contains(tag)) {
+            selectedTags.append(tag);
+        }
+        pos += tagRegex.matchedLength();
+    }
+    
+    // 提取好友 @friend
+    QRegExp friendRegex("@(\\w+)");
+    pos = 0;
+    while ((pos = friendRegex.indexIn(text, pos)) != -1) {
+        QString friendName = friendRegex.cap(1);
+        if (!selectedFriends.contains(friendName)) {
+            selectedFriends.append(friendName);
+        }
+        pos += friendRegex.matchedLength();
+    }
+    
+    // 更新输入栏显示
+    updateInputBar();
 }
 

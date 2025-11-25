@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QTimer>
+#include <QEvent>
 
 class RecordPage : public QWidget
 {
@@ -13,13 +14,20 @@ public:
 
 signals:
     void recordingFinished();   // 录制结束后 → 进入发布页
+    void draftSelected(const QString &draftText);  // 选择草稿后 → 进入发布页
+
+public:
+    static void addDraft(const QString &draftText);  // 添加草稿（供 PublishPage 调用）
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void onRecordButtonClicked();
     void onSwitchButtonClicked();
+    void onPauseButtonClicked();   // ★ 新增
+    void onDraftButtonClicked();  // 打开草稿箱
 
 private:
     QWidget *phoneFrame;
@@ -28,6 +36,10 @@ private:
 
     QPushButton *recordButton;
     QPushButton *switchButton;
+    QPushButton *pauseButton;
+    QPushButton *draftButton;  // 草稿箱按钮
+    bool isPaused = false;
+
 
     QTimer pulseTimer;
     bool isRecording = false;

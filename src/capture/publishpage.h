@@ -14,6 +14,7 @@ class PublishPage : public QWidget
     Q_OBJECT
 public:
     explicit PublishPage(QWidget *parent = nullptr);
+    void loadDraft(const QString &draftText);  // 加载草稿内容
 
 signals:
     void backToRecord();
@@ -64,6 +65,7 @@ private:
     QStringList selectedFriends;
     QString privacySelection = "所有人可见";
     QString userText = "";
+    QString draftBuffer;       // ★ 新增
     bool blockTextSignal = false;
     QSlider *volumeSlider = nullptr;
 };
