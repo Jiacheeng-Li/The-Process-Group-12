@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#0D0D0D" stroke="#3A7DFF" stroke-width="2"></rect>
+  <!-- 左边人 -->
+  <circle cx="22" cy="24" r="6" fill="none" stroke="#6C4DFF" stroke-width="2.2"></circle>
+  <path d="M14 38 C16 32,28 32,30 38" fill="none" stroke="#6C4DFF" stroke-width="2.2" stroke-linecap="round"></path>
+  <!-- 右边小锁 -->
+  <rect x="34" y="30" width="13" height="10" rx="3" fill="#0D0D0D" stroke="#FF4F70" stroke-width="2"></rect>
+  <path d="M38 30 C38 26,43 26,43 30" fill="none" stroke="#FF4F70" stroke-width="2" stroke-linecap="round"></path>
+  <circle cx="40.5" cy="35" r="1.6" fill="#FF4F70"></circle>
+</svg>

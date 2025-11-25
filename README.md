@@ -34,7 +34,7 @@ Bottom navigation bar layout:
 
 ---
 
-## 🏠 Home (CN)
+## 🏠 Home
 Displays recommended videos from the user’s **antipodal location**.
 
 **Features**
@@ -47,7 +47,7 @@ Displays recommended videos from the user’s **antipodal location**.
 
 ---
 
-## 👥 Friends (YX)
+## 👥 Friends
 Timeline-based view showing content from followed users and friends.
 
 **Features**
@@ -57,7 +57,7 @@ Timeline-based view showing content from followed users and friends.
 
 ---
 
-## ⏺ Record (YX)
+## ⏺ Record
 Users can record and publish one short video per day.
 
 **Features**
@@ -69,7 +69,7 @@ Users can record and publish one short video per day.
 
 ---
 
-## 💬 Chat (ZY)
+## 💬 Chat
 Direct messaging between friends.
 
 **Features**
@@ -80,7 +80,7 @@ Direct messaging between friends.
 
 ---
 
-## 👤 Profile (ZY)
+## 👤 Profile
 Manage personal information and showcase pinned videos.
 
 **Features**
@@ -107,37 +107,24 @@ Manage personal information and showcase pinned videos.
 # 📁 Project Folder Structure
 
 ```
-/project-root
-│
-├── src/
-│   ├── home/          # Antipode video feed (CN)
-│   ├── player/        # Video playback (CN)
-│   ├── friends/       # Friends timeline (YX)
-│   ├── capture/       # Record & upload (YX)
-│   ├── chat/          # Messaging module (ZY)
-│   ├── profile/       # User profile (ZY)
-│   └── shared/        # Shared UI components
-│
+/ (repo root)
+├── README.md
+├── 2811_cw3-master-release-lowres/
 ├── docs/
 │   ├── sprint1/
-│   │   ├── requirements.md
-│   │   ├── meeting-notes.md
-│   │   ├── use-cases.md
-│   │   ├── kanban.png
-│   │   ├── ui-prototypes/
-│   │   ├── screenshots/
-│   │   └── sprint1-summary.md
 │   ├── sprint2/
-│   ├── sprint3/
-│   └── ethics/
-│
+│   └── sprint3/
+├── src/
+│   ├── the.pro
+│   ├── capture/
+│   ├── chat/
+│   ├── friends/
+│   ├── home/
+│   ├── player/
+│   ├── profile/
+│   ├── sources/
+│   └── videos/
 ├── videos/
-│   ├── sprint1.mp4
-│   ├── sprint2.mp4
-│   ├── sprint3.mp4
-│   └── showcase.mp4
-│
-├── README.md
 └── .gitignore
 ```
 
@@ -187,18 +174,29 @@ Press ▶️ Run in Qt Creator.
 ### Branches
 ```
 main
-dev
+
 sprint1-JC-uiux
 sprint1-CN-player
 sprint1-ZY-frontend
 sprint1-YX-capture
 sprint1-XT-docs
+
 sprint1-prototype
+
+sprint2-JC-uiux
+sprint2-CN-player
+sprint2-ZY-frontend-player
+sprint2-YX-capture
+sprint2-XT-docs
+
+sprint2-integration
+sprint2-prototype
 ```
 
 ### Tags
 ```
 v1.0-sprint1
+v2.0-sprint2
 ```
 
 ---

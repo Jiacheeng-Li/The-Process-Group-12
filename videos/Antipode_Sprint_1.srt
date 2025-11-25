@@ -1,0 +1,87 @@
+1
+00:00:00,233 --> 00:00:01,900
+Welcome to Antipode: DayDreamNight.
+
+2
+00:00:01,900 --> 00:00:04,200
+This is our Sprint 1 Iteration Overview.
+
+3
+00:00:04,333 --> 00:00:08,666
+Before Sprint 1 began, we established our core use cases and design concept:
+
+4
+00:00:08,666 --> 00:00:12,633
+
+a global video-sharing app connecting people across day and night.
+
+5
+00:00:12,633 --> 00:00:16,500
+It lets users experience real-time moments from the opposite side of the world.
+
+6
+00:00:16,500 --> 00:00:21,266
+We planned our development timeline using a Gantt chart,
+setting clear weekly milestones.
+
+7
+00:00:21,266 --> 00:00:24,766
+We also defined team roles and adopted a Kanban workflow.
+
+8
+00:00:24,766 --> 00:00:27,833
+All project documentation was recorded by Xintong.
+
+9
+00:00:27,833 --> 00:00:34,533
+To shape the structure and visual direction of the app,
+Jiacheng created the initial UI wireframes and prototypes.
+
+10
+00:00:34,533 --> 00:00:38,900
+In Sprint 1, our primary goal was to build the fundamental page frameworks.
+
+11
+00:00:38,900 --> 00:00:43,666
+Home Page and Video Player — implemented by Caona,
+including the base playback scaffolding.
+
+12
+00:00:43,666 --> 00:00:48,200
+Capture Page framework — built by Yuanxi, 
+featuring a front–rear camera switch
+
+13
+00:00:48,200 --> 00:00:52,433
+and a post-recording flow for adding text, 
+tags, and basic edits.
+
+14
+00:00:52,500 --> 00:00:57,400
+Chat and Profile Pages — developed by Ziyi,
+forming the foundation of the social interface,
+
+15
+00:00:57,400 --> 00:01:00,800
+including the basic messaging layout 
+and user info display.
+
+16
+00:01:01,133 --> 00:01:06,633
+We used GitHub with feature branches to manage version control
+and coordinate collaborative development.
+
+17
+00:01:06,733 --> 00:01:11,500
+Sprint 1 delivered our core structural frameworks, 
+but we also identified gaps
+
+18
+00:01:11,500 --> 00:01:16,900
+pages remain unintegrated, styling is minimal, 
+and key functions are still incomplete.
+
+19
+00:01:16,900 --> 00:01:19,900
+These findings shape our priorities for Sprint 2.
+
