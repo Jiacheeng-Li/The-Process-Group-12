@@ -1,8 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <!-- 背景图 -->
-        <file>resources/earth.png</file>
-        <!-- 视频缩略图 -->
-        <file>resources/video_thumbnail.png</file>
-    </qresource>
-</RCC>

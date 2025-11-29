@@ -1,4 +1,4 @@
-QT += core gui widgets multimedia multimediawidgets
+QT += core gui widgets multimedia multimediawidgets texttospeech
 
 CONFIG += c++11
 
@@ -18,7 +18,8 @@ HEADERS += \
     the_button.h \
     the_player.h \
     profile_page.h \
-    chat_page.h
+    chat_page.h \
+    app_settings.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
