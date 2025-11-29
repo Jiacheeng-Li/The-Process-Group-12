@@ -2,6 +2,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QPropertyAnimation>
 #include <QDebug>
+#include <QtGlobal>
 
 PopupPanel::PopupPanel(QWidget *parent)
     : QWidget(parent)
@@ -11,20 +12,26 @@ PopupPanel::PopupPanel(QWidget *parent)
 
     box = new QWidget(this);
     box->setStyleSheet(
-        "background:white;"
-        "border-radius:12px;"
-        "border:2px solid #888;"
+        "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(2,8,20,0.98), stop:1 rgba(13,13,13,0.98));"
+        "border-radius: 16px;"
+        "border: 3px solid #6CADFF;"
         );
 
     layout = new QVBoxLayout(box);
-    layout->setContentsMargins(15, 15, 15, 15);
-    layout->setSpacing(10);
+    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setSpacing(12);
 
     title = new QLabel("");
-    title->setStyleSheet("font-size:18px;font-weight:600;color:#333;");
+    title->setStyleSheet(
+        "font-size: 20px;"
+        "font-weight: 700;"
+        "color: white;"
+        "padding-bottom: 8px;"
+        "border-bottom: 2px solid #6CADFF;"
+    );
     layout->addWidget(title);
 
-    resize(320, 260);
+    resize(400, 500);  // 增大面板尺寸，确保内容能够完整显示
     box->setGeometry(0,0, width(), height());
 }
 
@@ -40,6 +47,15 @@ void PopupPanel::setContent(QWidget *content)
 
     contentWidget = content;
     layout->addWidget(contentWidget);
+    
+    // 根据内容自动调整大小，但设置最小和最大尺寸
+    contentWidget->adjustSize();
+    int contentHeight = contentWidget->sizeHint().height();
+    int minHeight = 300;
+    int maxHeight = 600;
+    int newHeight = qBound(minHeight, contentHeight + 100, maxHeight);  // 100是标题和边距的空间
+    resize(width(), newHeight);
+    box->setGeometry(0, 0, width(), height());
 }
 
 void PopupPanel::showPanel()

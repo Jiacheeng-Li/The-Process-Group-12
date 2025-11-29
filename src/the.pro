@@ -1,4 +1,4 @@
-QT += core gui widgets multimedia multimediawidgets
+QT += core gui widgets multimedia multimediawidgets texttospeech
 
 CONFIG += c++11
 
@@ -9,6 +9,9 @@ CONFIG += c++11
 # 主函数
 SOURCES += \
     home/tomeo.cpp
+
+# 明确告诉 MOC 处理 tomeo.cpp（因为其中包含 Q_OBJECT 类）
+# MOC 会自动生成 moc_tomeo.cpp
 
 # Capture 文件夹（录制和发布）
 SOURCES += \
@@ -38,6 +41,10 @@ SOURCES += \
 SOURCES += \
     chat/chat_page.cpp
 
+# Shared utilities
+SOURCES += \
+    shared/language_manager.cpp
+
 # 头文件
 HEADERS += \
     capture/recordpage.h \
@@ -49,7 +56,8 @@ HEADERS += \
     player/the_player.h \
     player/the_button.h \
     profile/profile_page.h \
-    chat/chat_page.h
+    chat/chat_page.h \
+    shared/language_manager.h
 
 # 包含路径设置（相对于 src 目录）
 INCLUDEPATH += \
@@ -59,7 +67,8 @@ INCLUDEPATH += \
     friends \
     player \
     profile \
-    chat
+    chat \
+    shared
 
 # 资源文件
 RESOURCES += \

@@ -1,0 +1,15 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- 外圈圆形 -->
+  <circle cx="40" cy="40" r="34" fill="#111318" stroke="#FF4F70" stroke-width="2"></circle>
+
+  <!-- 扬声器主体（一个梯形） -->
+  <polygon points="26,32 34,32 40,26 40,54 34,48 26,48" fill="#FFFFFF"></polygon>
+
+  <!-- 静音 X 的左斜线 -->
+  <line x1="46" y1="30" x2="58" y2="42" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"></line>
+
+  <!-- 静音 X 的右斜线 -->
+  <line x1="58" y1="30" x2="46" y2="42" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"></line>
+</svg>

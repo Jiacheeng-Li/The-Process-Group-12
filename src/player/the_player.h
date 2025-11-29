@@ -24,7 +24,7 @@ private:
 
 public:
     ThePlayer() : QMediaPlayer(NULL) {
-        setVolume(0); // be slightly less annoying
+        setVolume(75); // 设置默认音量（0-100），确保有声音
         connect (this, SIGNAL (stateChanged(QMediaPlayer::State)), this, SLOT (playStateChanged(QMediaPlayer::State)) );
 
         mTimer = new QTimer(NULL);

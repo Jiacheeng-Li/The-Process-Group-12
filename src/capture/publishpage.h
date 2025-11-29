@@ -6,8 +6,11 @@
 #include <QLineEdit>
 #include <QSlider>
 #include <QStringList>
+#include <QVector>
 #include "popuppanel.h"
 
+class QAbstractButton;
+class QLabel;
 
 class PublishPage : public QWidget
 {
@@ -34,6 +37,9 @@ private slots:
 
 private:
     void updateInputBar();    // <- new
+    void applyLanguage();
+    QString tagDisplayText(const QString &key) const;
+    QString tagKeyForLabel(const QString &label) const;
 
 private:
     QLineEdit *inputBar;
@@ -63,11 +69,21 @@ private:
     // new — data model
     QStringList selectedTags;
     QStringList selectedFriends;
-    QString privacySelection = "所有人可见";
+    QString privacySelection = "all";
     QString userText = "";
     QString draftBuffer;       // ★ 新增
     bool blockTextSignal = false;
     QSlider *volumeSlider = nullptr;
+    QLabel *volumeLabel = nullptr;
+
+    struct LocalizedOption {
+        QString key;
+        QString zh;
+        QString en;
+        QAbstractButton *button = nullptr;
+    };
+    QVector<LocalizedOption> tagOptions_;
+    QVector<LocalizedOption> privacyOptions_;
 };
 
 #endif // PUBLISHPAGE_H

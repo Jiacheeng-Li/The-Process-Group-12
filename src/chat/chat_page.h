@@ -5,6 +5,8 @@
 #include <QString>
 #include <vector>
 
+#include "app_settings.h"
+
 class QVBoxLayout;
 class QScrollArea;
 class QLineEdit;
@@ -14,12 +16,15 @@ class QLabel;
 class QHBoxLayout;
 class QFrame;
 class QResizeEvent;
+class QPushButton;
 
 class ChatPage : public QWidget {
     Q_OBJECT
 
 public:
     explicit ChatPage(QWidget *parent = nullptr);
+    void setLanguage(AppLanguage language);
+    void setHighContrastMode(bool enabled);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -46,6 +51,7 @@ private:
     void initializeContacts();
     void switchContact(int index);
     void updateResponsiveLayout();
+    void rebuildStrings();
 
     QVBoxLayout *messageLayout_ = nullptr;
     QScrollArea *messageScroll_ = nullptr;
@@ -57,9 +63,20 @@ private:
     QFrame *listPanel_ = nullptr;
     QFrame *conversationPanel_ = nullptr;
     QHBoxLayout *surfaceLayout_ = nullptr;
+    QLabel *listTitleLabel_ = nullptr;
+    QPushButton *sendButton_ = nullptr;
+    QLabel *hintLabel_ = nullptr;
 
     std::vector<ContactThread> contacts_;
     int activeContactIndex_ = 0;
+    AppLanguage language_ = AppLanguage::Chinese;
+    bool highContrastMode_ = false;
+    QString defaultStyleSheet_;
+    QString highContrastStyleSheet_;
+    QString chatsTitle_;
+    QString messagePlaceholder_;
+    QString sendButtonLabel_;
+    QString hintText_;
 };
 
 #endif // CHAT_PAGE_H

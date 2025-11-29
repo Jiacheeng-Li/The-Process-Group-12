@@ -6,6 +6,8 @@
 #include <QTimer>
 #include <QEvent>
 
+#include "../shared/language_manager.h"
+
 class RecordPage : public QWidget
 {
     Q_OBJECT
@@ -17,7 +19,7 @@ signals:
     void draftSelected(const QString &draftText);  // 选择草稿后 → 进入发布页
 
 public:
-    static void addDraft(const QString &draftText);  // 添加草稿（供 PublishPage 调用）
+    static void addDraft(const QString &draftText);  // Helper used by PublishPage to push drafts
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -45,6 +47,8 @@ private:
     bool isRecording = false;
     bool backIsBlack = true;
     int pulseState = 0;   // 呼吸灯渐变
+
+    void applyTranslations(AppLanguage lang);
 };
 
 #endif // RECORDPAGE_H

@@ -5,9 +5,10 @@
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QString>
+#include <QResizeEvent>
 #include <vector>
 #include "frienditem.h"
-#include "../player/the_button.h"  // 需要完整定义才能使用 std::vector<TheButtonInfo>
+#include "../player/the_button.h"  // Needs full definition for std::vector<TheButtonInfo>
 
 class FriendsPage : public QWidget
 {
@@ -21,12 +22,17 @@ public:
 
 signals:
     void goToProfile(const QString &username);
+    void playVideoRequested(int index);  // Notifies that a feed card requested playback
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void onCommentRequested(FriendItem *item);
 
 private:
     void initializeWithVideos(const std::vector<TheButtonInfo> &videos);
+    void updateResponsiveLayout();
     
     QWidget *listWidget;
     QVBoxLayout *listLayout;
