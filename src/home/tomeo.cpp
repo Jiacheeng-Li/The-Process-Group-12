@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QtMultimediaWidgets/QVideoWidget>
 #include <QMediaPlaylist>
 #include <string>
@@ -52,14 +53,19 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QAbstractSlider>
 #include <QCheckBox>
 #include <QActionGroup>
 #include <QStringLiteral>
+#include <QStringList>
 #include <QFont>
 #include <QConicalGradient>
 #include <QPainterPath>
 #include <memory>
 #include "app_settings.h"
+#include "shared/language_manager.h"
+#include "shared/narration_manager.h"
 #include <QTextToSpeech>
 #include <QShortcut>
 #include <QKeySequence>
@@ -73,6 +79,7 @@
 #include <QGroupBox>
 #include <QVector>
 #include <QLocale>
+#include <QRandomGenerator>
 
 namespace {
 QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
@@ -95,11 +102,12 @@ QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
 
     return base;
 }
+} // namespace
 
-// 彩色头像环（仿 Instagram），使用项目配色做渐变
-class AvatarRingWidget : public QWidget {
+// 彩色头像环（仿 Instagram），使用项目配色做渐变（用于HomePage）
+class HomePageAvatarRingWidget : public QWidget {
 public:
-    explicit AvatarRingWidget(const QIcon *icon, QWidget *parent = nullptr)
+    explicit HomePageAvatarRingWidget(const QIcon *icon, QWidget *parent = nullptr)
         : QWidget(parent) {
         if (icon) {
             icon_.reset(new QIcon(*icon));
@@ -154,7 +162,6 @@ protected:
 private:
     std::unique_ptr<QIcon> icon_;
 };
-} // namespace
 
 class ResizeWatcher : public QObject {
 public:
@@ -287,25 +294,36 @@ public:
 
 public slots:
     void handlePosition(qint64 position) {
-        if (!enabled_ || cues_.isEmpty()) {
+        if (!enabled_) {
             return;
         }
-        if (currentCueIndex_ >= 0) {
+        if (cues_.isEmpty()) {
+            return;
+        }
+        // 检查当前字幕是否还在有效范围内
+        if (currentCueIndex_ >= 0 && currentCueIndex_ < cues_.size()) {
             const auto &cue = cues_.at(currentCueIndex_);
             if (position >= cue.startMs && position <= cue.endMs) {
-                return;
+                return; // 仍在当前字幕时间范围内，不需要更新
             }
         }
+        // 查找新的字幕
         for (int i = 0; i < cues_.size(); ++i) {
             const auto &cue = cues_.at(i);
             if (position >= cue.startMs && position <= cue.endMs) {
-                currentCueIndex_ = i;
-                emit subtitleChanged(cue.text);
+                if (currentCueIndex_ != i) {
+                    currentCueIndex_ = i;
+                    qDebug() << "SubtitleController: Showing subtitle at" << position << "ms:" << cue.text;
+                    emit subtitleChanged(cue.text);
+                }
                 return;
             }
         }
-        currentCueIndex_ = -1;
-        emit subtitleChanged(QString());
+        // 没有找到匹配的字幕，清除显示
+        if (currentCueIndex_ >= 0) {
+            currentCueIndex_ = -1;
+            emit subtitleChanged(QString());
+        }
     }
 
 signals:
@@ -340,26 +358,34 @@ private:
         // 2. 视频文件同目录下，不带语言后缀：{baseName}.srt
         searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(dirPath, baseName));
         
-        // 3. 尝试在项目根目录的多个可能位置查找
+        // 3. 在项目根目录下的videos文件夹中查找字幕（和src1、src2同级的videos目录）
+        // 这个videos目录会提交，所以SRT文件应该放在这里
         QDir videoDir(dirPath);
-        // 尝试找到项目根目录（向上查找，直到找到包含 src1 或 videos 的目录）
+        // 尝试找到项目根目录（向上查找，直到找到包含 videos 的目录）
         QDir currentDir = videoDir;
+        QString videosPath;
+        
         for (int i = 0; i < 5 && currentDir.cdUp(); ++i) {
             QString rootPath = currentDir.absolutePath();
             
-            // 检查 src1/sources/videos 目录
-            QString src1VideosPath = QDir::cleanPath(QString("%1/src1/sources/videos").arg(rootPath));
-            if (QDir(src1VideosPath).exists()) {
-                searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(src1VideosPath, baseName, language_));
-                searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(src1VideosPath, baseName));
+            // 检查根目录下的 videos 目录（和src1、src2同级的videos文件夹）
+            QString testVideosPath = QDir::cleanPath(QString("%1/videos").arg(rootPath));
+            if (QDir(testVideosPath).exists() && videosPath.isEmpty()) {
+                videosPath = testVideosPath;
+                break; // 找到就停止
             }
-            
-            // 检查 videos 目录
-            QString videosPath = QDir::cleanPath(QString("%1/videos").arg(rootPath));
-            if (QDir(videosPath).exists()) {
-                searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(videosPath, baseName, language_));
-                searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(videosPath, baseName));
-            }
+        }
+        
+        // 在根目录的videos文件夹中查找字幕文件
+        if (!videosPath.isEmpty()) {
+            searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(videosPath, baseName, language_));
+            searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(videosPath, baseName));
+        }
+        
+        // 4. 额外检查：如果视频文件路径中包含videos，也在同级的videos目录中查找
+        if (dirPath.contains("videos", Qt::CaseInsensitive)) {
+            // 如果视频就在videos目录中，已经在步骤1-2中查找过了
+            // 这里可以添加其他可能的videos目录路径
         }
         
         QString foundPath;
@@ -376,9 +402,17 @@ private:
             cues_ = parseSrtFile(foundPath);
             hasActiveFile_ = !cues_.isEmpty();
             qDebug() << "SubtitleController: Loaded" << cues_.size() << "subtitle cues from" << foundPath;
+            if (cues_.isEmpty()) {
+                qDebug() << "SubtitleController: WARNING - Subtitle file found but no cues were parsed. Check file format.";
+            }
         } else {
-            qDebug() << "SubtitleController: No subtitle file found for" << videoPath;
-            qDebug() << "SubtitleController: Searched paths:" << searchPaths;
+            qDebug() << "SubtitleController: No subtitle file found for video:" << videoPath;
+            qDebug() << "SubtitleController: Base name:" << baseName;
+            qDebug() << "SubtitleController: Language:" << language_;
+            qDebug() << "SubtitleController: Searched paths:";
+            for (const QString &path : searchPaths) {
+                qDebug() << "  -" << path;
+            }
         }
 
         if (!hasActiveFile_) {
@@ -406,9 +440,26 @@ QStringList discoverSubtitleLanguages(const std::vector<TheButtonInfo> &videos) 
         const QFileInfo fileInfo(info.url->toLocalFile());
         const QString dirPath = fileInfo.absolutePath();
         const QString baseName = fileInfo.completeBaseName();
+        
+        // 在视频文件同目录下查找
         QDir dir(dirPath);
-        const QFileInfoList entries = dir.entryInfoList(QStringList() << QString("%1_*.srt").arg(baseName),
-                                                        QDir::Files | QDir::NoSymLinks);
+        QFileInfoList entries = dir.entryInfoList(QStringList() << QString("%1_*.srt").arg(baseName),
+                                                  QDir::Files | QDir::NoSymLinks);
+        
+        // 也在根目录的videos文件夹中查找（和src1、src2同级的videos目录）
+        QDir currentDir = dir;
+        for (int i = 0; i < 5 && currentDir.cdUp(); ++i) {
+            QString rootPath = currentDir.absolutePath();
+            QString videosPath = QDir::cleanPath(QString("%1/videos").arg(rootPath));
+            if (QDir(videosPath).exists()) {
+                QDir videosDir(videosPath);
+                QFileInfoList videosEntries = videosDir.entryInfoList(QStringList() << QString("%1_*.srt").arg(baseName),
+                                                                    QDir::Files | QDir::NoSymLinks);
+                entries.append(videosEntries);
+                break; // 找到就停止
+            }
+        }
+        
         for (const QFileInfo &entry : entries) {
             const QString entryBase = entry.completeBaseName();
             const int underscore = entryBase.lastIndexOf('_');
@@ -435,6 +486,42 @@ QLocale localeFor(AppLanguage language) {
                                             : QLocale(QLocale::Chinese, QLocale::China);
 }
 
+// 获取用户头像路径（与FriendItem中的函数相同）
+static QString getAvatarPathForUser(const QString &username)
+{
+    // Map the first five demo users to avatar files 1-5.jpg
+    QStringList avatarUsers = {"Alice", "Bob", "Ethan", "Luna", "Olivia"};
+    int index = avatarUsers.indexOf(username);
+    
+    if (index >= 0 && index < 5) {
+        QString fileName = QString::number(index + 1) + ".jpg";
+        QStringList searchPaths = {
+            QDir::currentPath() + "/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../friends/avatar/" + fileName,
+            QDir::currentPath() + "/src/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../src/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../../src/friends/avatar/" + fileName,
+            QApplication::applicationDirPath() + "/friends/avatar/" + fileName,
+            QApplication::applicationDirPath() + "/../friends/avatar/" + fileName,
+            QApplication::applicationDirPath() + "/../../friends/avatar/" + fileName,
+            QApplication::applicationDirPath() + "/../../src/friends/avatar/" + fileName,
+            QApplication::applicationDirPath() + "/../../../src/friends/avatar/" + fileName,
+            "friends/avatar/" + fileName,
+            "../friends/avatar/" + fileName,
+            "src/friends/avatar/" + fileName
+        };
+        
+        for (const QString &path : searchPaths) {
+            QString normalizedPath = QDir::cleanPath(path);
+            if (QFile::exists(normalizedPath)) {
+                return normalizedPath;
+            }
+        }
+    }
+    
+    return "";
+}
+
 QString subtitleLanguageDisplayName(const QString &code, AppLanguage interfaceLanguage) {
     const QString upperCode = code.toUpper();
     if (code.compare("zh", Qt::CaseInsensitive) == 0) {
@@ -459,8 +546,9 @@ public:
     AccessibilitySettingsDialog(const AccessibilityPreferences &prefs,
                                 const QStringList &subtitleLanguages,
                                 AppLanguage language,
+                                QMediaPlayer *player,
                                 QWidget *parent = nullptr)
-        : QDialog(parent), prefs_(prefs), uiLanguage_(language) {
+        : QDialog(parent), prefs_(prefs), uiLanguage_(language), player_(player) {
         setWindowTitle(language == AppLanguage::English
                            ? QStringLiteral("Accessibility & Internationalization")
                            : QString::fromUtf8("无障碍与多语言设置"));
@@ -565,12 +653,52 @@ public:
                                       : QString::fromUtf8("饱和度"),
                                   saturationLayout);
         
+        // 只允许后端稳定支持的几个倍速档：0.5x / 1.0x / 1.5x / 2.0x
+        static const double kRates[] = {0.5, 1.0, 1.5, 2.0};
+
+        auto nearestRate = [](double value) {
+            const double kRatesLocal[] = {0.5, 1.0, 1.5, 2.0};
+            double best = kRatesLocal[0];
+            double bestDiff = std::fabs(value - best);
+            for (double r : kRatesLocal) {
+                const double d = std::fabs(value - r);
+                if (d < bestDiff) {
+                    best = r;
+                    bestDiff = d;
+                }
+            }
+            return best;
+        };
+
+        // 将当前偏好值对齐到最近的合法倍速
+        prefs_.playbackRate = nearestRate(prefs_.playbackRate);
+
         playbackRateSlider_ = new QSlider(Qt::Horizontal, this);
-        playbackRateSlider_->setRange(25, 400);  // 0.25-4.0, 步进0.01
+        // 0.5–2.0 之间的整数百分比，但我们会在 valueChanged 中自动“吸附”到合法档位
+        playbackRateSlider_->setRange(50, 200);
         playbackRateSlider_->setValue(static_cast<int>(prefs_.playbackRate * 100));
         playbackRateLabel_ = new QLabel(QString::number(prefs_.playbackRate, 'f', 2) + "x", this);
-        connect(playbackRateSlider_, &QSlider::valueChanged, this, [this](int value) {
-            playbackRateLabel_->setText(QString::number(value / 100.0, 'f', 2) + "x");
+        connect(playbackRateSlider_, &QSlider::valueChanged, this, [this, nearestRate](int value) {
+            double raw = value / 100.0;
+            double snapped = nearestRate(raw);
+            int snappedInt = static_cast<int>(snapped * 100 + 0.5);
+
+            // 如果用户拖到非精确位置，自动吸附到最近档位并更新滑条
+            if (snappedInt != value) {
+                playbackRateSlider_->blockSignals(true);
+                playbackRateSlider_->setValue(snappedInt);
+                playbackRateSlider_->blockSignals(false);
+            }
+
+            playbackRateLabel_->setText(QString::number(snapped, 'f', 2) + "x");
+            prefs_.playbackRate = snapped;
+
+            // 对话框打开时实时更新播放器倍速，让用户立刻感受到变化
+            if (player_) {
+                player_->setPlaybackRate(snapped);
+            }
+
+            updatePlaybackWarningLabel();
         });
         auto *playbackRateLayout = new QHBoxLayout();
         playbackRateLayout->addWidget(playbackRateSlider_);
@@ -579,6 +707,12 @@ public:
                                       ? QStringLiteral("Playback Speed")
                                       : QString::fromUtf8("播放倍速"),
                                   playbackRateLayout);
+
+        // 环境限制提示：当前后端不支持真实倍速，始终 1.0x
+        playbackRateWarning_ = new QLabel(this);
+        playbackRateWarning_->setWordWrap(true);
+        playbackRateWarning_->setStyleSheet("color: #ff4f70; font-size: 11px;");
+        videoParamsLayout->addRow(QString(), playbackRateWarning_);
 
         layout->addWidget(narrationBox_);
         layout->addWidget(subtitlesBox_);
@@ -600,10 +734,17 @@ public:
             prefs_.brightness = brightnessSlider_->value() / 100.0;
             prefs_.contrast = contrastSlider_->value() / 100.0;
             prefs_.saturation = saturationSlider_->value() / 100.0;
-            prefs_.playbackRate = playbackRateSlider_->value() / 100.0;
+            // playbackRate 在 valueChanged 中已经被 nearestRate 吸附过，这里直接使用 prefs_
             accept();
         });
         connect(buttonBox, &QDialogButtonBox::rejected, this, &AccessibilitySettingsDialog::reject);
+
+        // 当界面语言切换时，更新提示语言
+        connect(languageCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AccessibilitySettingsDialog::updatePlaybackWarningLabel);
+
+        // 根据当前倍速初始化提示
+        updatePlaybackWarningLabel();
     }
 
     AccessibilityPreferences preferences() const { return prefs_; }
@@ -625,14 +766,57 @@ private:
     QLabel *contrastLabel_ = nullptr;
     QLabel *saturationLabel_ = nullptr;
     QLabel *playbackRateLabel_ = nullptr;
+    QLabel *playbackRateWarning_ = nullptr;
+    QMediaPlayer *player_ = nullptr;
+
+    void updatePlaybackWarningLabel();
 };
+
+void AccessibilitySettingsDialog::updatePlaybackWarningLabel()
+{
+    if (!playbackRateWarning_) {
+        return;
+    }
+
+    // 如果当前倍速是 1.0x，就不显示提示
+    if (qFuzzyCompare(prefs_.playbackRate, 1.0)) {
+        playbackRateWarning_->hide();
+        return;
+    }
+
+    // 根据界面语言选择提示文本
+    AppLanguage lang = uiLanguage_;
+    if (languageCombo_) {
+        const QVariant data = languageCombo_->currentData();
+        if (data.isValid()) {
+            lang = static_cast<AppLanguage>(data.toInt());
+        }
+    }
+
+    const QString zh = QString::fromUtf8(
+        "当前环境下系统后端不支持音频变速，因此实测只能固定 1.0x，这是平台限制，不是逻辑错误。");
+    const QString en = QStringLiteral(
+        "On this system the multimedia backend does not support changing the audio playback speed, "
+        "so it effectively stays fixed at 1.0x. This is a platform limitation, not a bug in the app.");
+
+    playbackRateWarning_->setText(
+        lang == AppLanguage::Chinese ? zh : en);
+    playbackRateWarning_->show();
+}
 
 // Custom HomePage widget that paints the background image
 class HomePageWidget : public QWidget {
 public:
     explicit HomePageWidget(QWidget *parent = nullptr)
-        : QWidget(parent) {
+        : QWidget(parent), gradientAngle_(0.0) {
         setObjectName("homePage");
+    }
+    
+    void setGradientAngle(qreal angle) {
+        if (gradientAngle_ != angle) {
+            gradientAngle_ = angle;
+            update(); // 触发重绘
+        }
     }
     
     void setBackgroundImage(const QString &bgImagePath) {
@@ -712,7 +896,8 @@ protected:
         QRectF outerRect = rect().adjusted(3.0, 3.0, -3.0, -3.0);
         
         // 使用和头像类似的多色渐变做一圈「色环边框」
-        QConicalGradient grad(outerRect.center(), 0);
+        // 渐变角度随滚动位置变化
+        QConicalGradient grad(outerRect.center(), gradientAngle_);
         grad.setColorAt(0.00, QColor("#FF4F70"));
         grad.setColorAt(0.18, QColor("#FF8AA0"));
         grad.setColorAt(0.32, QColor("#6CADFF"));
@@ -749,9 +934,11 @@ private:
     QPixmap backgroundPixmap;
     QPixmap scaledBackground;
     QSize lastScaledSize;
+    qreal gradientAngle_; // 渐变角度，随滚动变化
 };
 
 // read in videos and thumbnails from this directory
+// 如果同一个字母有多种格式（.wmv / .mp4 / .mov），只保留**一种**，避免在首页和朋友圈重复出现
 std::vector<TheButtonInfo> getInfoIn(std::string loc) {
     std::vector<TheButtonInfo> out;
 
@@ -761,6 +948,13 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
         return out;
     }
 
+    // 收集所有候选视频文件，按「同名不同后缀」分组
+    struct Candidate {
+        QFileInfo fi;
+        int priority = 0;
+    };
+    QMap<QString, Candidate> bestByBaseName;
+
     QDirIterator it(dir);
     while (it.hasNext()) {
         const QString f = it.next();
@@ -769,28 +963,43 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
             continue;
         }
 
-        const QString lower = f.toLower();
-        bool isVideo = false;
+        const QString lower = fi.fileName().toLower();
+        QString ext = fi.suffix().toLower();       // 不带点，例如 "mp4"
+        QString base = fi.completeBaseName();      // 例如 "a", "b", "h"
 
+        int pri = 0;
 #if defined(_WIN32)
-        // Windows: prefer wmv / mp4
-        if (lower.endsWith(".wmv") || lower.endsWith(".mp4")) {
-            isVideo = true;
-        }
+        // Windows 下优先选 .wmv，其次 .mp4，最后 .mov
+        if (ext == "wmv") pri = 3;
+        else if (ext == "mp4") pri = 2;
+        else if (ext == "mov") pri = 1;
 #else
-        // macOS / Linux: mp4 / mov
-        if (lower.endsWith(".mp4") || lower.endsWith(".mov")) {
-            isVideo = true;
-        }
+        // 其他平台优先 mp4 / mov
+        if (ext == "mp4") pri = 3;
+        else if (ext == "mov") pri = 2;
+        else if (ext == "wmv") pri = 1;
 #endif
 
-        if (!isVideo) {
-            continue;
+        if (pri == 0) {
+            continue; // 非支持的视频格式
         }
+
+        auto itBest = bestByBaseName.find(base);
+        if (itBest == bestByBaseName.end() || pri > itBest->priority) {
+            Candidate c;
+            c.fi = fi;
+            c.priority = pri;
+            bestByBaseName[base] = c;
+        }
+    }
+
+    for (auto itBest = bestByBaseName.constBegin(); itBest != bestByBaseName.constEnd(); ++itBest) {
+        const QFileInfo &fi = itBest->fi;
+        const QString filePath = fi.absoluteFilePath();
 
         // Try to load thumbnail if it exists; otherwise fall back to no icon
         QIcon *ico = nullptr;
-        const QString thumb = f.left(f.length() - 4) + ".png";
+        const QString thumb = fi.absolutePath() + QLatin1Char('/') + fi.completeBaseName() + QStringLiteral(".png");
         if (QFile::exists(thumb)) {
             QImageReader imageReader(thumb);
             const QImage sprite = imageReader.read();
@@ -800,10 +1009,10 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
                 qDebug() << "warning: skipping thumbnail (failed to read):" << thumb;
             }
         } else {
-            qDebug() << "info: no thumbnail found for" << f << "- using plain tile";
+            qDebug() << "info: no thumbnail found for" << filePath << "- using plain tile";
         }
 
-        QUrl *url = new QUrl(QUrl::fromLocalFile(f));
+        QUrl *url = new QUrl(QUrl::fromLocalFile(filePath));
         if (!url->isLocalFile() || !QFile::exists(url->toLocalFile())) {
             qWarning() << "Skipping video with invalid path:" << url->toString();
             delete url;
@@ -811,7 +1020,7 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
             continue;
         }
 
-        qDebug() << "Discovered video:" << url->toLocalFile();
+        qDebug() << "Discovered video (chosen variant):" << url->toLocalFile();
         out.push_back(TheButtonInfo(url, ico));
     }
 
@@ -820,6 +1029,47 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
     }
 
     return out;
+}
+
+std::vector<TheButtonInfo> loadVideosFromDefaultLocations() {
+    QStringList candidateDirs;
+    const QString current = QDir::currentPath();
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList relativeCandidates = {
+        QStringLiteral("videos"),
+        QStringLiteral("../videos"),
+        QStringLiteral("../../videos"),
+        QStringLiteral("src/videos"),
+        QStringLiteral("../src/videos")
+    };
+
+    for (const QString &rel : relativeCandidates) {
+        candidateDirs << QDir::cleanPath(current + QLatin1Char('/') + rel);
+    }
+    for (const QString &rel : relativeCandidates) {
+        candidateDirs << QDir::cleanPath(appDir + QLatin1Char('/') + rel);
+    }
+
+    QSet<QString> visited;
+    for (const QString &path : candidateDirs) {
+        QDir dir(path);
+        if (!dir.exists()) {
+            continue;
+        }
+        const QString absolutePath = dir.absolutePath();
+        if (visited.contains(absolutePath)) {
+            continue;
+        }
+        visited.insert(absolutePath);
+        auto videos = getInfoIn(absolutePath.toStdString());
+        if (!videos.empty()) {
+            qDebug() << "Loaded videos from default path:" << absolutePath;
+            return videos;
+        }
+    }
+
+    qWarning() << "Unable to locate videos in default locations. Checked:" << candidateDirs;
+    return {};
 }
 
 
@@ -849,8 +1099,13 @@ int main(int argc, char *argv[]) {
     // collect all the videos in the folder
     std::vector<TheButtonInfo> videos;
 
-    if (argc == 2)
-        videos = getInfoIn( std::string(argv[1]) );
+    if (argc == 2) {
+        videos = getInfoIn(std::string(argv[1]));
+    }
+
+    if (videos.empty()) {
+        videos = loadVideosFromDefaultLocations();
+    }
 
     if (videos.size() == 0) {
 
@@ -868,19 +1123,14 @@ int main(int argc, char *argv[]) {
     auto pickText = [&accessibilityPrefs](const QString &zh, const QString &en) {
         return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
     };
-    // QTextToSpeech disabled for compatibility - speech narration feature not available
-    void *speech = nullptr;
+    // 语音播报功能将在window定义后初始化
+    // 使用全局NarrationManager管理语音播报
     auto narrate = [&](const QString &text) {
-        // Speech narration disabled - QTextToSpeech not available
-        Q_UNUSED(text);
-        // if (!accessibilityPrefs.narrationEnabled || !speech) {
-        //     return;
-        // }
-        // const QString trimmed = text.trimmed();
-        // if (trimmed.isEmpty()) {
-        //     return;
-        // }
-        // QTextToSpeech functionality disabled
+        NarrationManager::instance().narrate(text);
+    };
+    
+    auto narratePick = [&](const QString &zh, const QString &en) {
+        NarrationManager::instance().narrate(zh, en);
     };
     if (!subtitleLanguages.contains(accessibilityPrefs.subtitleLanguage)) {
         accessibilityPrefs.subtitleLanguage = subtitleLanguages.value(0, QStringLiteral("zh"));
@@ -895,15 +1145,7 @@ int main(int argc, char *argv[]) {
     ThePlayer *player = new ThePlayer;
     player->setVideoOutput(videoWidget);
     player->setContent(nullptr, &videos);
-     // 初始化时应用视频显示参数（亮度、对比度、饱和度）
-     qreal brightness = (accessibilityPrefs.brightness - 1.0) * 100.0;
-     qreal contrast = (accessibilityPrefs.contrast - 1.0) * 100.0;
-     qreal saturation = (accessibilityPrefs.saturation - 1.0) * 100.0;
-     videoWidget->setBrightness(brightness);
-     videoWidget->setContrast(contrast);
-     videoWidget->setSaturation(saturation);
-     // 初始化时应用播放倍速
-     player->setPlaybackRate(accessibilityPrefs.playbackRate);
+
     const QString backgroundUrlDay(":/home/earth.png");
     const QString backgroundUrlNight(":/home/earth1.png");
     
@@ -919,7 +1161,7 @@ int main(int argc, char *argv[]) {
 
     auto *titleCol = new QVBoxLayout();
     titleCol->setSpacing(4);
-    auto *heroTitle = new QLabel(QString::fromUtf8("Today on BeReal Earth"));
+    auto *heroTitle = new QLabel(QString::fromUtf8("Daydream Night"));
     heroTitle->setObjectName("heroTitle");
     auto *heroSubtitle = new QLabel(QString::fromUtf8("双摄延迟 %1 min · 与朋友共享未修饰瞬间").arg(8));
     heroSubtitle->setObjectName("heroSubtitle");
@@ -948,7 +1190,7 @@ int main(int argc, char *argv[]) {
 
     // 使用彩色环头像（类似Profile页）
     const QIcon *avatarIcon = videos.empty() ? nullptr : videos.front().icon;
-    auto *avatarRing = new AvatarRingWidget(avatarIcon, berealCard);
+    auto *avatarRing = new HomePageAvatarRingWidget(avatarIcon, berealCard);
 
     auto *identityCol = new QVBoxLayout();
     identityCol->setSpacing(2);
@@ -1058,7 +1300,8 @@ int main(int argc, char *argv[]) {
     metaLayout->addWidget(locationLabel);
     metaLayout->addStretch();
     auto *shareNowButton = new QPushButton(QString::fromUtf8("同步到好友"), metaFooter);
-    shareNowButton->setIcon(QIcon(":/icons/icons/share_to_friends.svg"));
+    // 默认夜间模式下使用高对比版本 share_to_friends1.svg
+    shareNowButton->setIcon(QIcon(":/icons/icons/share_to_friends1.svg"));
     shareNowButton->setIconSize(QSize(28, 28));
     shareNowButton->setObjectName("shareNowButton");
     metaLayout->addWidget(shareNowButton);
@@ -1070,6 +1313,14 @@ int main(int argc, char *argv[]) {
     progressSlider->setEnabled(!videos.empty());
     progressSlider->setTracking(false);  // 禁用跟踪，只在释放时更新
     cardLayout->addWidget(progressSlider);
+    
+    // 添加音量控制条，长度和进度条一样
+    auto *volumeSlider = new QSlider(Qt::Horizontal, berealCard);
+    volumeSlider->setObjectName("volumeSlider");
+    volumeSlider->setRange(0, 100);
+    volumeSlider->setValue(100);  // 默认音量100%
+    volumeSlider->setEnabled(!videos.empty());
+    cardLayout->addWidget(volumeSlider);
     
     // Track whether the user is currently dragging the slider
     auto *isDragging = new bool(false);
@@ -1110,10 +1361,11 @@ int main(int argc, char *argv[]) {
         }
         return btn;
     };
-    auto *playPauseButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/play.svg"));
+    // 夜间模式默认使用高对比图标 *1.svg
+    auto *playPauseButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/play1.svg"));
     auto *muteButton = makeRecordStyleButton(QString(), true);
-    auto *prevMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/prev.svg"));
-    auto *nextMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/next.svg"));
+    auto *prevMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/prev1.svg"));
+    auto *nextMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/next1.svg"));
     auto *retakeButton = makePillButton(QString::fromUtf8("重拍提示"));
 
     controlRow->addWidget(playPauseButton);
@@ -1216,8 +1468,9 @@ int main(int argc, char *argv[]) {
 
     auto updatePlayPauseVisual = [playPauseButton, player]() {
         const bool playing = player->state() == QMediaPlayer::PlayingState;
-        const QString iconPath = playing ? QStringLiteral(":/icons/icons/pause.svg")
-                                         : QStringLiteral(":/icons/icons/play.svg");
+        // 夜间模式默认使用高对比版本 *1.svg
+        const QString iconPath = playing ? QStringLiteral(":/icons/icons/pause1.svg")
+                                         : QStringLiteral(":/icons/icons/play1.svg");
         playPauseButton->setIcon(QIcon(iconPath));
         playPauseButton->setIconSize(QSize(30, 30));
     };
@@ -1225,8 +1478,9 @@ int main(int argc, char *argv[]) {
 
     auto updateMuteIcon = [muteButton]() {
         const bool checked = muteButton->isChecked();
-        const QString iconPath = checked ? QStringLiteral(":/icons/icons/mute.svg")
-                                         : QStringLiteral(":/icons/icons/volume.svg");
+        // 夜间模式默认使用高对比版本 *1.svg
+        const QString iconPath = checked ? QStringLiteral(":/icons/icons/mute1.svg")
+                                         : QStringLiteral(":/icons/icons/volume1.svg");
         muteButton->setIcon(QIcon(iconPath));
         muteButton->setIconSize(QSize(30, 30));
     };
@@ -1357,8 +1611,8 @@ int main(int argc, char *argv[]) {
             return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
         };
 
-        heroTitle->setText(pick(QString::fromUtf8("今日 BeReal 地球"),
-                                QStringLiteral("Today on BeReal Earth")));
+        heroTitle->setText(pick(QString::fromUtf8("白日梦"),
+                                QStringLiteral("Daydream Night")));
         heroSubtitle->setText(pick(
             QString::fromUtf8("双摄延迟 %1 分钟 · 与朋友共享未修饰瞬间").arg(8),
             QStringLiteral("Dual-camera delay %1 min · Share unfiltered moments with friends").arg(8)));
@@ -1450,23 +1704,22 @@ int main(int argc, char *argv[]) {
         }
     });
 
-    QObject::connect(muteButton, &QPushButton::toggled, [player, updateMuteIcon](bool checked) {
-        player->setMuted(checked);
-        updateMuteIcon();
-    });
+    // 静音按钮连接（与音量条同步，见下方音量控制条连接）
 
-    // Slider drag handling
+    // Slider drag handling - 修复拖动后回到原位置的问题
     QObject::connect(progressSlider, &QSlider::sliderPressed, [isDragging]() {
         *isDragging = true;
     });
     QObject::connect(progressSlider, &QSlider::sliderMoved, [player, isDragging](int value) {
         if (*isDragging) {
-            player->setPosition(value);
+            player->setPosition(static_cast<qint64>(value));
         }
     });
     QObject::connect(progressSlider, &QSlider::sliderReleased, [player, progressSlider, isDragging]() {
         *isDragging = false;
-        player->setPosition(progressSlider->value());
+        const int sliderPos = progressSlider->sliderPosition();
+        progressSlider->setValue(sliderPos);
+        player->setPosition(static_cast<qint64>(sliderPos));
     });
 
     QObject::connect(player, &QMediaPlayer::durationChanged, [progressSlider](qint64 duration) {
@@ -1478,9 +1731,36 @@ int main(int argc, char *argv[]) {
     });
     QObject::connect(player, &QMediaPlayer::positionChanged, [progressSlider, isDragging](qint64 position) {
         // Only update when the user is not actively dragging
-        if (!(*isDragging) && !progressSlider->isSliderDown()) {
+        if (!(*isDragging) && !progressSlider->isSliderDown() && !progressSlider->signalsBlocked()) {
             const int sliderPos = static_cast<int>(std::min<qint64>(position, std::numeric_limits<int>::max()));
             progressSlider->setValue(sliderPos);
+        }
+    });
+    
+    // 音量控制条连接
+    QObject::connect(volumeSlider, &QSlider::valueChanged, [player, muteButton](int value) {
+        player->setVolume(value);
+        // 如果音量设为0，自动静音；如果从0增加，取消静音
+        // 使用 blockSignals 避免循环触发
+        if (value == 0 && !muteButton->isChecked()) {
+            muteButton->blockSignals(true);
+            muteButton->setChecked(true);
+            muteButton->blockSignals(false);
+        } else if (value > 0 && muteButton->isChecked()) {
+            muteButton->blockSignals(true);
+            muteButton->setChecked(false);
+            muteButton->blockSignals(false);
+        }
+    });
+    // 同步静音按钮和音量条
+    QObject::connect(muteButton, &QPushButton::toggled, [player, volumeSlider, updateMuteIcon](bool checked) {
+        player->setMuted(checked);
+        updateMuteIcon();
+        // 如果取消静音，恢复之前的音量（如果当前是0，设为50）
+        if (!checked && volumeSlider->value() == 0) {
+            volumeSlider->blockSignals(true);
+            volumeSlider->setValue(50);
+            volumeSlider->blockSignals(false);
         }
     });
 
@@ -1623,6 +1903,9 @@ int main(int argc, char *argv[]) {
         }
     });
 
+    // 初始化LanguageManager，确保默认语言与无障碍设置一致
+    LanguageManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
+    
     ProfilePage *profilePage = new ProfilePage(videos);
     profilePage->setLanguage(accessibilityPrefs.interfaceLanguage);
     profilePage->setHighContrastMode(accessibilityPrefs.colorBlindPaletteEnabled);
@@ -1669,6 +1952,19 @@ int main(int argc, char *argv[]) {
     homePage->setMinimumHeight(1200); // 允许滚动，但不要过长
     homePage->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
     
+    // 连接滚动条信号，使色环随滚动变化
+    QObject::connect(homeScrollArea->verticalScrollBar(), &QAbstractSlider::valueChanged, 
+                     [homePage, homeScrollArea](int value) {
+        // 将滚动位置转换为角度（0-360度）
+        const int maxScroll = homeScrollArea->verticalScrollBar()->maximum();
+        if (maxScroll > 0) {
+            const qreal angle = (static_cast<qreal>(value) / maxScroll) * 360.0;
+            homePage->setGradientAngle(angle);
+        } else {
+            homePage->setGradientAngle(0.0);
+        }
+    });
+    
     QStackedWidget *stackedPages = new QStackedWidget();
     stackedPages->addWidget(homeScrollArea);  // 0: Home (within a scroll area)
     stackedPages->addWidget(friendsPage);   // 1: Friends
@@ -1687,8 +1983,10 @@ int main(int argc, char *argv[]) {
     window.setMinimumSize(420, 720);
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
-    // QTextToSpeech disabled for compatibility
-    speech = nullptr;
+    // 初始化语音播报管理器
+    NarrationManager::instance().initialize(&window);
+    NarrationManager::instance().setEnabled(accessibilityPrefs.narrationEnabled);
+    NarrationManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
 
     auto buildNightStyle = [&]() {
         return QStringLiteral(
@@ -1786,6 +2084,21 @@ int main(int argc, char *argv[]) {
                    "  margin: -6px 0;"
                    "}"
                    "QSlider#progressSlider::sub-page {"
+                   "  background: rgba(93,155,255,0.85);"
+                   "  border-radius: 2px;"
+                   "}"
+                   "QSlider#volumeSlider::groove {"
+                   "  height: 4px;"
+                   "  background: rgba(255,255,255,0.18);"
+                   "  border-radius: 2px;"
+                   "}"
+                   "QSlider#volumeSlider::handle {"
+                   "  width: 16px;"
+                   "  background: rgba(255,255,255,0.9);"
+                   "  border-radius: 8px;"
+                   "  margin: -6px 0;"
+                   "}"
+                   "QSlider#volumeSlider::sub-page {"
                    "  background: rgba(93,155,255,0.85);"
                    "  border-radius: 2px;"
                    "}"
@@ -1942,6 +2255,9 @@ int main(int argc, char *argv[]) {
                    "QSlider#progressSlider::groove { background: rgba(32,50,90,0.15); height: 4px; border-radius: 2px; }"
                    "QSlider#progressSlider::handle { width: 16px; background: #3353b3; border-radius: 8px; margin: -6px 0; }"
                    "QSlider#progressSlider::sub-page { background: #6f8dff; border-radius: 2px; }"
+                   "QSlider#volumeSlider::groove { background: rgba(32,50,90,0.15); height: 4px; border-radius: 2px; }"
+                   "QSlider#volumeSlider::handle { width: 16px; background: #3353b3; border-radius: 8px; margin: -6px 0; }"
+                   "QSlider#volumeSlider::sub-page { background: #6f8dff; border-radius: 2px; }"
                    "QPushButton#pillButton {"
                    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(191,191,191,0.2), stop:1 rgba(108,173,255,0.3));"
                    "  color: #0c1b33;"
@@ -2053,12 +2369,33 @@ int main(int argc, char *argv[]) {
             "QPushButton#pillButton { background-color: #f4c430; color: #000; border-radius: 18px; padding: 10px 18px; font-weight: 700; }"
             "QPushButton#reactionButton { background-color: #000; color: #f4c430; border: 2px solid #f4c430; }"
             "QFrame#commentPanel { background: #0f0f0f; border-radius: 26px; border: 2px solid #f4c430; }"
-            "QPushButton#replyButton { color: #f4c430; font-weight: 700; }"
-            "QFrame#floatingNav { background-color: #000; border: 2px solid #f4c430; border-radius: 28px; }"
-            "QPushButton#navButton { color: #f4c430; font-weight: 700; }"
-            "QPushButton#navButton:checked { background-color: #f4c430; color: #000; border-radius: 18px; }"
+            // 高对比：回复按钮黑底黄字
+            "QPushButton#replyButton { background-color: #000000; color: #f4c430; border: 2px solid #f4c430; border-radius: 18px; font-weight: 700; padding: 6px 18px; }"
+            "QPushButton#replyButton:hover { background-color: #111111; border-color: #ffd700; }"
+            // 高对比：分享给好友（metaFooter 里的 shareNowButton）模块黑底黄字
+            "QPushButton#shareNowButton { background-color: #000000; color: #f4c430; border: 2px solid #f4c430; border-radius: 20px; padding: 8px 20px; font-weight: 700; }"
+            "QPushButton#shareNowButton:hover { background-color: #111111; border-color: #ffd700; }"
+            "QLabel#metaLabel { color: #f4c430; }"
+            "QFrame#floatingNav { background-color: #000000; border: 2px solid #f4c430; border-radius: 28px; }"
+            // 高对比模式下：导航按钮文字永远在纯黑背景上，大小一致
+            "QPushButton#navButton {"
+            "  background-color: #000000;"
+            "  color: #f4c430;"
+            "  border: 2px solid #f4c430;"
+            "  border-radius: 18px;"
+            "  font-weight: 700;"
+            "  padding: 10px 18px;"
+            "}"
+            "QPushButton#navButton:checked {"
+            "  background-color: #000000;"
+            "  color: #f4c430;"
+            "  border: 3px solid #ffd700;"
+            "  border-radius: 18px;"
+            "}"
             "QSlider#progressSlider::groove { background: #f4c430; height: 4px; }"
             "QSlider#progressSlider::handle { width: 16px; background: #ffffff; border-radius: 8px; margin: -6px 0; }"
+            "QSlider#volumeSlider::groove { background: #f4c430; height: 4px; }"
+            "QSlider#volumeSlider::handle { width: 16px; background: #ffffff; border-radius: 8px; margin: -6px 0; }"
             "QFrame#controlsBar { background-color: rgba(0,0,0,0.9); border: 2px solid #f4c430; border-radius: 18px; }"
             "QDialog { background-color: #0f0f0f; color: #f4c430; }"
             "QCheckBox { color: #f4c430; }"
@@ -2099,13 +2436,22 @@ int main(int argc, char *argv[]) {
         } else if (!night && !highContrast) {
             homePage->setBackgroundImage(backgroundUrlDay);
         }
-        // Note: setHighContrastMode may not be available in ProfilePage and ChatPage
-        // if (profilePage && profilePage->metaObject()->indexOfMethod("setHighContrastMode(bool)") >= 0) {
-        //     profilePage->setHighContrastMode(highContrast);
-        // }
-        // if (chatPage && chatPage->metaObject()->indexOfMethod("setHighContrastMode(bool)") >= 0) {
-        //     chatPage->setHighContrastMode(highContrast);
-        // }
+        // 更新ProfilePage和ChatPage的主题
+        if (profilePage) {
+            profilePage->setHighContrastMode(highContrast);
+            if (!highContrast) {
+                profilePage->setDayMode(!night);
+            }
+        }
+        if (chatPage && chatPage->metaObject()->indexOfMethod("setHighContrastMode(bool)") >= 0) {
+            chatPage->setHighContrastMode(highContrast);
+        }
+        if (friendsPage) {
+            friendsPage->setHighContrastMode(highContrast);
+            if (!highContrast) {
+                friendsPage->setDayMode(!night);
+            }
+        }
     };
     applyTheme(true);
 
@@ -2163,14 +2509,20 @@ int main(int argc, char *argv[]) {
         button->setObjectName("navButton");
         button->setCheckable(true);
         button->setCursor(Qt::PointingHandCursor);
+        // 保证五个按钮大小一致：统一高度 + 横向等分
+        button->setMinimumHeight(44);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         navGroup->addButton(button, spec.index);
         floatingLayout->addWidget(button);
         spec.button = button;
 
         const int targetIndex = spec.index;
-        QObject::connect(button, &QPushButton::toggled, stackedPages, [stackedPages, targetIndex](bool checked) {
+        QObject::connect(button, &QPushButton::toggled, stackedPages, [stackedPages, targetIndex, &spec, &accessibilityPrefs](bool checked) {
             if (checked) {
                 stackedPages->setCurrentIndex(targetIndex);
+                // 播报页面切换
+                QString pageName = accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? spec.zh : spec.en;
+                NarrationManager::instance().narrate(pageName);
             }
         });
 
@@ -2220,6 +2572,11 @@ int main(int argc, char *argv[]) {
     // 页面跳转逻辑：Record -> Publish
     QObject::connect(recordPage, &RecordPage::recordingFinished, [&](){
         stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("录制完成，进入发布页面"),
+            "Recording finished, entering publish page"
+        );
     });
 
     // Navigation: Publish -> Friends
@@ -2231,6 +2588,11 @@ int main(int argc, char *argv[]) {
                          } else {
                              stackedPages->setCurrentIndex(1);  // Switch to Friends page
                          }
+                         // 语音播报
+                         NarrationManager::instance().narrate(
+                             QString::fromUtf8("发布成功，已添加到朋友圈"),
+                             "Published successfully, added to friends feed"
+                         );
                      });
 
     // 页面跳转逻辑：Publish -> Record (返回)
@@ -2245,6 +2607,11 @@ int main(int argc, char *argv[]) {
     QObject::connect(recordPage, &RecordPage::draftSelected, [&](const QString &draftText){
         publishPage->loadDraft(draftText);
         stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("已选择草稿，进入发布页面"),
+            "Draft selected, entering publish page"
+        );
     });
 
     // Profile 页面播放视频请求
@@ -2256,6 +2623,11 @@ int main(int argc, char *argv[]) {
                 stackedPages->setCurrentIndex(0);
             }
             playVideoAt(index);
+            // 语音播报
+            NarrationManager::instance().narrate(
+                QString::fromUtf8("播放视频 %1").arg(index + 1),
+                QString("Playing video %1").arg(index + 1)
+            );
         });
     }
 
@@ -2265,6 +2637,40 @@ int main(int argc, char *argv[]) {
             profileNavButton->setChecked(true);
         } else {
             stackedPages->setCurrentIndex(4);  // Profile 页面
+        }
+        
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("打开 %1 的主页").arg(username),
+            QString("Open %1's profile").arg(username)
+        );
+        
+        // 设置用户信息
+        if (profilePage) {
+            // 生成用户信息
+            QString displayName = username;
+            if (!displayName.isEmpty()) {
+                displayName[0] = displayName[0].toUpper();
+            }
+            
+            // 根据用户名生成不同的bio（使用哈希确保一致性）
+            uint hash = qHash(username);
+            QStringList bios = {
+                "Creator of amazing content • Sharing life moments",
+                "Photography enthusiast • Capturing beautiful moments",
+                "Content creator • Living life to the fullest",
+                "Artist • Expressing creativity through videos",
+                "Adventurer • Exploring the world one video at a time",
+                "Video storyteller • Documenting daily adventures",
+                "Creative mind • Always exploring new perspectives",
+                "Life enthusiast • Capturing moments that matter"
+            };
+            QString bio = bios.at(hash % bios.size());
+            
+            // 获取用户头像路径
+            QString avatarPath = getAvatarPathForUser(username);
+            
+            profilePage->setUserInfo(username, displayName, bio, avatarPath);
         }
     });
     
@@ -2276,12 +2682,17 @@ int main(int argc, char *argv[]) {
             stackedPages->setCurrentIndex(0);
         }
         playVideoAt(index);
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("播放视频 %1").arg(index + 1),
+            QString("Playing video %1").arg(index + 1)
+        );
     });
 
     QAction *accessibilityAction = nullptr;
     // 键盘快捷键支持 - 需要在使用前定义
     QVector<QShortcut *> keyboardShortcuts;
-    auto rebuildKeyboardShortcuts = [&]() {
+    auto rebuildKeyboardShortcuts = [&, volumeSlider]() {
         for (auto *shortcut : keyboardShortcuts) {
             if (shortcut) {
                 shortcut->deleteLater();
@@ -2332,22 +2743,76 @@ int main(int argc, char *argv[]) {
             });
         }
         if (player) {
+            // 跳过 5 秒
             addShortcut(QKeySequence(Qt::Key_Right), [player]() {
                 const qint64 duration = std::max<qint64>(0, player->duration());
                 const qint64 nextPos = player->position() + 5000;
                 player->setPosition(std::min(nextPos, duration));
             });
+            // 回退 5 秒
             addShortcut(QKeySequence(Qt::Key_Left), [player]() {
                 const qint64 nextPos = player->position() - 5000;
                 player->setPosition(std::max<qint64>(0, nextPos));
             });
-            addShortcut(QKeySequence(Qt::Key_Up), [player]() {
+            // 调整音量
+            addShortcut(QKeySequence(Qt::Key_Up), [player, volumeSlider]() {
                 const int currentVolume = player->volume();
-                player->setVolume(qMin(100, currentVolume + 5));
+                const int newVolume = qMin(100, currentVolume + 5);
+                player->setVolume(newVolume);
+                // 同步更新音量条
+                if (volumeSlider) {
+                    volumeSlider->blockSignals(true);
+                    volumeSlider->setValue(newVolume);
+                    volumeSlider->blockSignals(false);
+                }
             });
-            addShortcut(QKeySequence(Qt::Key_Down), [player]() {
+            addShortcut(QKeySequence(Qt::Key_Down), [player, volumeSlider]() {
                 const int currentVolume = player->volume();
-                player->setVolume(qMax(0, currentVolume - 5));
+                const int newVolume = qMax(0, currentVolume - 5);
+                player->setVolume(newVolume);
+                // 同步更新音量条
+                if (volumeSlider) {
+                    volumeSlider->blockSignals(true);
+                    volumeSlider->setValue(newVolume);
+                    volumeSlider->blockSignals(false);
+                }
+            });
+            // 使用 [ / ] / 0 键控制倍速：0.5x, 1.0x, 1.5x, 2.0 四个档位
+            addShortcut(QKeySequence(Qt::Key_BracketRight), [&accessibilityPrefs, player]() {
+                static const double kRates[] = {0.5, 1.0, 1.5, 2.0};
+                double rate = accessibilityPrefs.playbackRate;
+                int idx = 0;
+                for (int i = 0; i < 4; ++i) {
+                    if (std::fabs(rate - kRates[i]) < 0.01) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx < 3) {
+                    idx++;
+                }
+                accessibilityPrefs.playbackRate = kRates[idx];
+                player->setPlaybackRate(kRates[idx]);
+            });
+            addShortcut(QKeySequence(Qt::Key_BracketLeft), [&accessibilityPrefs, player]() {
+                static const double kRates[] = {0.5, 1.0, 1.5, 2.0};
+                double rate = accessibilityPrefs.playbackRate;
+                int idx = 0;
+                for (int i = 0; i < 4; ++i) {
+                    if (std::fabs(rate - kRates[i]) < 0.01) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx > 0) {
+                    idx--;
+                }
+                accessibilityPrefs.playbackRate = kRates[idx];
+                player->setPlaybackRate(kRates[idx]);
+            });
+            addShortcut(QKeySequence(Qt::Key_0), [&accessibilityPrefs, player]() {
+                accessibilityPrefs.playbackRate = 1.0;
+                player->setPlaybackRate(1.0);
             });
         }
     };
@@ -2390,11 +2855,14 @@ int main(int argc, char *argv[]) {
         if (accessibilityAction) {
             QObject::connect(accessibilityAction, &QAction::triggered, [&]() {
                 AccessibilitySettingsDialog dialog(accessibilityPrefs, subtitleLanguages,
-                                                   accessibilityPrefs.interfaceLanguage, &window);
+                                                   accessibilityPrefs.interfaceLanguage, player, &window);
                 if (dialog.exec() != QDialog::Accepted) {
                     return;
                 }
                 accessibilityPrefs = dialog.preferences();
+                
+                // 更新LanguageManager，这样RecordPage和FriendsPage会自动响应
+                LanguageManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
                 
                 // 应用新的无障碍设置
                 subtitleController->setLanguage(accessibilityPrefs.subtitleLanguage);
@@ -2411,10 +2879,9 @@ int main(int argc, char *argv[]) {
                     videoWidget->setContrast(contrast);
                     videoWidget->setSaturation(saturation);
                 }
-                // QTextToSpeech disabled for compatibility
-                // if (speech) {
-                //     speech->setLocale(localeFor(accessibilityPrefs.interfaceLanguage));
-                // }
+                // 更新语音播报设置
+                NarrationManager::instance().setEnabled(accessibilityPrefs.narrationEnabled);
+                NarrationManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
                 
                 // 更新所有页面的语言
                 applyHomeLanguage();

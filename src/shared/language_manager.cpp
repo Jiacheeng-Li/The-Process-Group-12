@@ -7,7 +7,7 @@ LanguageManager &LanguageManager::instance() {
 
 LanguageManager::LanguageManager()
     : QObject(nullptr),
-      currentLanguage_(AppLanguage::English) {}
+      currentLanguage_(AppLanguage::Chinese) {}
 
 AppLanguage LanguageManager::currentLanguage() const {
     return currentLanguage_;

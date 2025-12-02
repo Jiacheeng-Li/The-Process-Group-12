@@ -19,6 +19,10 @@
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QTimer>
+#include <QBitmap>
+#include <QImageReader>
+#include <QImage>
+#include "../shared/narration_manager.h"
 
 // Resolve avatar path based on username
 static QString getAvatarPathForUser(const QString &username)
@@ -72,7 +76,15 @@ QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius)
 
     QPixmap source;
     if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
-        source = QPixmap(imagePath);
+        // 使用 QImageReader 确保正确加载 JPG/PNG 等格式
+        QImageReader reader(imagePath);
+        QImage image = reader.read();
+        if (!image.isNull()) {
+            source = QPixmap::fromImage(image);
+        } else {
+            // 如果 QImageReader 失败，尝试直接加载
+            source = QPixmap(imagePath);
+        }
     }
 
     if (!source.isNull()) {
@@ -80,12 +92,33 @@ QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius)
         QPainter painter(&base);
         painter.setRenderHint(QPainter::Antialiasing);
         QPainterPath path;
-        path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
+        // 对于圆形头像，使用椭圆路径
+        if (radius == size.width() / 2 && size.width() == size.height()) {
+            path.addEllipse(QRectF(0, 0, size.width(), size.height()));
+        } else {
+            path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
+        }
         painter.setClipPath(path);
         painter.drawPixmap(0, 0, pix);
         painter.end();
     } else {
-        base.fill(QColor("#2d2d2d"));
+        // 使用色环配色方案生成渐变背景
+        QPainter painter(&base);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        if (radius == size.width() / 2 && size.width() == size.height()) {
+            path.addEllipse(QRectF(0, 0, size.width(), size.height()));
+        } else {
+            path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
+        }
+        QRadialGradient grad(size.width()/2, size.height()/2, size.width()/2);
+        grad.setColorAt(0.0, QColor("#FF4F70"));
+        grad.setColorAt(0.3, QColor("#FF8AA0"));
+        grad.setColorAt(0.5, QColor("#6CADFF"));
+        grad.setColorAt(0.7, QColor("#3A7DFF"));
+        grad.setColorAt(1.0, QColor("#BFBFBF"));
+        painter.fillPath(path, QBrush(grad));
+        painter.end();
     }
 
     return base;
@@ -105,16 +138,7 @@ FriendItem::FriendItem(const QString &avatarPath,
       copy_(copy),
       username_(username)
 {
-    setStyleSheet(
-        "QWidget { "
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(2,8,20,0.92), stop:1 rgba(13,13,13,0.95)); "
-        "  border: 2px solid #6CADFF; "
-        "  border-radius: 12px; "
-        "  padding: 0px; "
-        "  margin: 8px 0px; "
-        "}"
-        "QLabel { color: white; }"
-    );
+    setAttribute(Qt::WA_StyledBackground, true);
 
     QVBoxLayout *main = new QVBoxLayout(this);
     main->setContentsMargins(0, 0, 0, 0);
@@ -125,8 +149,9 @@ FriendItem::FriendItem(const QString &avatarPath,
     top->setContentsMargins(12, 12, 12, 8);
     top->setSpacing(10);
 
-    // 圆形头像（完全照抄Profile页逻辑）
+    // 圆形头像 - 使用mask确保真正圆形
     avatar = new QLabel(this);
+    avatar->setObjectName("friendAvatar");
     avatar->setFixedSize(40, 40);
     avatar->setScaledContents(false);
     
@@ -135,21 +160,42 @@ FriendItem::FriendItem(const QString &avatarPath,
         finalAvatarPath = getAvatarPathForUser(username);
     }
     
-    // 使用Profile页相同的逻辑
+    // 使用Profile页相同的逻辑，确保圆形（radius = size/2）
     QPixmap avatarPix = roundedFromPath(finalAvatarPath, QSize(40, 40), 20);
+    
+    // 创建圆形mask确保头像真正是圆形
+    QBitmap mask(40, 40);
+    mask.fill(Qt::color0);
+    QPainter maskPainter(&mask);
+    maskPainter.setRenderHint(QPainter::Antialiasing);
+    maskPainter.setBrush(Qt::color1);
+    maskPainter.drawEllipse(0, 0, 40, 40);
+    maskPainter.end();
+    avatarPix.setMask(mask);
+    
     avatar->setPixmap(avatarPix);
-    avatar->setStyleSheet(
-        "border: 2px solid #6CADFF;"
-        "border-radius: 20px;"
-        "background-color: transparent;"
-    );
+    // 确保 QLabel 是方形的，mask 会使其显示为圆形
+    avatar->setScaledContents(false);
+    avatar->setCursor(Qt::PointingHandCursor);
     avatar->installEventFilter(this);
 
     usernameLbl = new QLabel(username);
-    usernameLbl->setStyleSheet("font-weight:bold; font-size:16px; color: white;");
+    usernameLbl->setObjectName("friendUsername");
+    usernameLbl->setStyleSheet(
+        "font-weight: 600;"
+        "font-size: 15px;"
+        "background: transparent;"
+    );
+    usernameLbl->setCursor(Qt::PointingHandCursor);
+    usernameLbl->installEventFilter(this);
 
     timeLbl = new QLabel(time.toString("HH:mm"));
-    timeLbl->setStyleSheet("color:#8aa7d9; font-size:13px;");
+    timeLbl->setObjectName("friendTime");
+    timeLbl->setStyleSheet(
+        "font-size: 13px;"
+        "font-weight: 500;"
+        "background: transparent;"
+    );
 
     top->addWidget(avatar);
     top->addWidget(usernameLbl);
@@ -159,6 +205,7 @@ FriendItem::FriendItem(const QString &avatarPath,
 
     // 视频缩略图（Instagram风格，响应式，保持16:9比例）
     thumbLbl = new QLabel;
+    thumbLbl->setObjectName("friendVideoThumb");
     thumbLbl->setScaledContents(false); // 不使用自动缩放，手动控制比例
     thumbLbl->setAlignment(Qt::AlignCenter);
     thumbLbl->setStyleSheet("background: #0D0D0D;");
@@ -187,46 +234,49 @@ FriendItem::FriendItem(const QString &avatarPath,
     actionLayout->setContentsMargins(12, 8, 12, 8);
     actionLayout->setSpacing(0);
 
-    // Instagram风格的按钮样式
+    // Instagram风格的按钮样式，使用色环配色，放大字体
     QString buttonStyle = 
         "QPushButton {"
         "  background: transparent;"
-        "  color: white;"
+        "  color: #e8f0ff;"
         "  border: none;"
-        "  padding: 8px 12px;"
-        "  font-size: 14px;"
+        "  padding: 10px 14px;"
+        "  font-size: 16px;"
         "  font-weight: 600;"
         "  text-align: left;"
         "}"
         "QPushButton:hover {"
-        "  background: rgba(108,173,255,0.1);"
-        "  border-radius: 4px;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(108,173,255,0.15), "
+        "    stop:1 rgba(255,138,160,0.12));"
+        "  border-radius: 6px;"
+        "  color: #ffffff;"
         "}";
 
     likeBtn = new QPushButton(this);
     likeBtn->setIcon(QIcon(":/icons/icons/like.svg"));
-    likeBtn->setIconSize(QSize(22, 22));
+    likeBtn->setIconSize(QSize(32, 32)); // 再放大一些
     likeBtn->setText(" 0");
     likeBtn->setStyleSheet(buttonStyle);
     likeBtn->setCursor(Qt::PointingHandCursor);
 
     commentBtn = new QPushButton(this);
     commentBtn->setIcon(QIcon(":/icons/icons/comment.svg"));
-    commentBtn->setIconSize(QSize(22, 22));
+    commentBtn->setIconSize(QSize(32, 32)); // 再放大一些
     commentBtn->setText(" 0");
     commentBtn->setStyleSheet(buttonStyle);
     commentBtn->setCursor(Qt::PointingHandCursor);
 
     shareBtn = new QPushButton(this);
     shareBtn->setIcon(QIcon(":/icons/icons/share.svg"));
-    shareBtn->setIconSize(QSize(22, 22));
+    shareBtn->setIconSize(QSize(32, 32)); // 再放大一些
     shareBtn->setText(" 0");
     shareBtn->setStyleSheet(buttonStyle);
     shareBtn->setCursor(Qt::PointingHandCursor);
 
     repostBtn = new QPushButton(this);
     repostBtn->setIcon(QIcon(":/icons/icons/repost.svg"));
-    repostBtn->setIconSize(QSize(22, 22));
+    repostBtn->setIconSize(QSize(32, 32)); // 再放大一些
     repostBtn->setText(" 0");
     repostBtn->setStyleSheet(buttonStyle);
     repostBtn->setCursor(Qt::PointingHandCursor);
@@ -246,16 +296,30 @@ FriendItem::FriendItem(const QString &avatarPath,
 
     // 标签和内容
     tagLbl = new QLabel;
-    tagLbl->setStyleSheet("color:#6CADFF; font-size:14px; font-weight:600; padding: 0px 12px;");
+    tagLbl->setObjectName("friendTag");
+    tagLbl->setStyleSheet(
+        "font-size: 14px;"
+        "font-weight: 600;"
+        "padding: 4px 12px;"
+        "background: transparent;"
+    );
     main->addWidget(tagLbl);
 
     contentLbl = new QLabel;
+    contentLbl->setObjectName("friendCaption");
     contentLbl->setWordWrap(true);
-    contentLbl->setStyleSheet("color:#dbe7ff; font-size:14px; padding: 0px 12px 8px 12px;");
+    contentLbl->setStyleSheet(
+        "font-size: 14px;"
+        "font-weight: 400;"
+        "line-height: 1.5;"
+        "padding: 0px 12px 8px 12px;"
+        "background: transparent;"
+    );
     main->addWidget(contentLbl);
 
     // 评论区（Instagram风格）
     commentArea = new QWidget(this);
+    commentArea->setObjectName("friendComments");
     commentArea->setStyleSheet("background: transparent; padding: 0px 12px 12px 12px;");
     QVBoxLayout *commentLayout = new QVBoxLayout(commentArea);
     commentLayout->setContentsMargins(0, 0, 0, 0);
@@ -269,19 +333,13 @@ FriendItem::FriendItem(const QString &avatarPath,
     inputLayout->setSpacing(8);
 
     commentInput = new QLineEdit(this);
+    commentInput->setObjectName("friendCommentInput");
     commentInput->setPlaceholderText("Add a comment...");
     commentInput->setStyleSheet(
         "QLineEdit {"
-        "  background: rgba(108,173,255,0.1);"
-        "  border: 1px solid #6CADFF;"
         "  border-radius: 20px;"
         "  padding: 8px 16px;"
-        "  color: white;"
         "  font-size: 14px;"
-        "}"
-        "QLineEdit:focus {"
-        "  border: 1px solid #3A7DFF;"
-        "  background: rgba(108,173,255,0.15);"
         "}"
     );
     commentInput->hide(); // 初始隐藏
@@ -289,17 +347,32 @@ FriendItem::FriendItem(const QString &avatarPath,
     QPushButton *postBtn = new QPushButton("Post", this);
     postBtn->setStyleSheet(
         "QPushButton {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6CADFF, stop:1 #3A7DFF);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #3A7DFF, "
+        "    stop:0.5 #6CADFF, "
+        "    stop:1 #3A7DFF);"
         "  color: white;"
-        "  border: none;"
+        "  border: 2px solid rgba(108,173,255,0.8);"
         "  border-radius: 20px;"
         "  padding: 8px 20px;"
         "  font-weight: 600;"
+        "  font-size: 14px;"
         "}"
         "QPushButton:hover {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #7db8ff, stop:1 #4a8dff);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #6CADFF, "
+        "    stop:0.5 #3A7DFF, "
+        "    stop:1 #6CADFF);"
+        "  border-color: rgba(108,173,255,1.0);"
+        "}"
+        "QPushButton:pressed {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #2A6DEF, "
+        "    stop:0.5 #5C9DFF, "
+        "    stop:1 #2A6DEF);"
         "}"
     );
+    postBtn->setCursor(Qt::PointingHandCursor);
     postBtn->hide(); // 初始隐藏
 
     inputLayout->addWidget(commentInput, 1);
@@ -332,7 +405,7 @@ FriendItem::FriendItem(const QString &avatarPath,
         postBtn->hide();
     });
 
-    updateCountDisplay();
+    applyThemeStyles();
 
     auto &langMgr = LanguageManager::instance();
     applyLanguage(langMgr.currentLanguage());
@@ -366,6 +439,11 @@ void FriendItem::onLike()
     liked = !liked;
     likeCount += liked ? 1 : -1;
     updateCountDisplay();
+    // 语音播报
+    NarrationManager::instance().narrate(
+        liked ? QString::fromUtf8("已点赞") : QString::fromUtf8("取消点赞"),
+        liked ? "Liked" : "Unliked"
+    );
 }
 
 void FriendItem::onShare()
@@ -373,6 +451,11 @@ void FriendItem::onShare()
     shared = !shared;
     shareCount += shared ? 1 : -1;
     updateCountDisplay();
+    // 语音播报
+    NarrationManager::instance().narrate(
+        shared ? QString::fromUtf8("已分享") : QString::fromUtf8("取消分享"),
+        shared ? "Shared" : "Unshared"
+    );
 }
 
 void FriendItem::onRepost()
@@ -380,6 +463,11 @@ void FriendItem::onRepost()
     reposted = !reposted;
     repostCount += reposted ? 1 : -1;
     updateCountDisplay();
+    // 语音播报
+    NarrationManager::instance().narrate(
+        reposted ? QString::fromUtf8("已转发") : QString::fromUtf8("取消转发"),
+        reposted ? "Reposted" : "Unreposted"
+    );
 }
 
 void FriendItem::onComment()
@@ -389,7 +477,7 @@ void FriendItem::onComment()
     emit commentRequested(this);
 }
 
-void FriendItem::addComment(const QString &text)
+void FriendItem::addComment(const QString &text, const QString &commenter)
 {
     // 只在真正添加评论时增加计数（修复重复计数问题）
     if (!text.trimmed().isEmpty()) {
@@ -411,12 +499,23 @@ void FriendItem::addComment(const QString &text)
         commentAvatar->setFixedSize(32, 32);
         commentAvatar->setScaledContents(false);
         
-        QString commenterName = "You"; // 可以改为当前用户
+        QString commenterName = commenter.isEmpty() ? "You" : commenter;
         QString commenterAvatarPath = getAvatarPathForUser(commenterName);
         QPixmap commentAvatarPix = roundedFromPath(commenterAvatarPath, QSize(32, 32), 16);
+        
+        // 创建圆形mask确保头像真正是圆形
+        QBitmap mask(32, 32);
+        mask.fill(Qt::color0);
+        QPainter maskPainter(&mask);
+        maskPainter.setRenderHint(QPainter::Antialiasing);
+        maskPainter.setBrush(Qt::color1);
+        maskPainter.drawEllipse(0, 0, 32, 32);
+        maskPainter.end();
+        commentAvatarPix.setMask(mask);
+        
         commentAvatar->setPixmap(commentAvatarPix);
+        commentAvatar->setProperty("isCommentAvatar", true);
         commentAvatar->setStyleSheet(
-            "border: 1px solid #6CADFF;"
             "border-radius: 16px;"
             "background-color: transparent;"
         );
@@ -424,8 +523,9 @@ void FriendItem::addComment(const QString &text)
         // 评论内容
         QLabel *commentText = new QLabel(commentItem);
         commentText->setWordWrap(true);
-        commentText->setText(QString("<b>%1</b> %2").arg(commenterName).arg(text));
-        commentText->setStyleSheet("color: white; font-size: 14px; background: transparent;");
+        commentText->setProperty("commenterName", commenterName);
+        commentText->setProperty("commentBody", text);
+        restyleCommentLabel(commentText);
 
         itemLayout->addWidget(commentAvatar);
         itemLayout->addWidget(commentText, 1);
@@ -440,40 +540,284 @@ void FriendItem::updateCountDisplay()
     shareBtn->setText(QString(" %1").arg(shareCount));
     repostBtn->setText(QString(" %1").arg(repostCount));
     
-    // 根据状态改变图标颜色（使用色环中的粉色作为激活色）
-    QString baseStyle = 
-        "QPushButton {"
-        "  background: transparent;"
-        "  color: white;"
-        "  border: none;"
-        "  padding: 8px 12px;"
-        "  font-size: 14px;"
-        "  font-weight: 600;"
-        "  text-align: left;"
-        "}"
-        "QPushButton:hover {"
-        "  background: rgba(108,173,255,0.1);"
-        "  border-radius: 4px;"
-        "}";
+    const QString baseTextColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#20324f" : "#e8f0ff");
+    const QString hoverBg = dayMode_ ? "rgba(51,83,179,0.08)" : "rgba(108,173,255,0.15)";
+    const QString hoverTextColor = dayMode_ ? "#0c1b33" : "#ffffff";
+    const QString activeColor = dayMode_ ? "#d93f78" : "#FF4F70";
+    const QString activeHoverBg = dayMode_ ? "rgba(217,63,120,0.12)" : "rgba(255,79,112,0.15)";
     
-    QString activeStyle = 
-        "QPushButton {"
-        "  background: transparent;"
-        "  color: #FF4F70;"
-        "  border: none;"
-        "  padding: 8px 12px;"
-        "  font-size: 14px;"
-        "  font-weight: 600;"
-        "  text-align: left;"
-        "}"
-        "QPushButton:hover {"
-        "  background: rgba(255,79,112,0.1);"
-        "  border-radius: 4px;"
-        "}";
+    QString baseStyle =
+        QString("QPushButton {"
+                "  background: transparent;"
+                "  color: %1;"
+                "  border: none;"
+                "  padding: 10px 14px;"
+                "  font-size: 16px;"
+                "  font-weight: 600;"
+                "  text-align: left;"
+                "}"
+                "QPushButton:hover {"
+                "  background: %2;"
+                "  border-radius: 6px;"
+                "  color: %3;"
+                "}")
+            .arg(baseTextColor, hoverBg, hoverTextColor);
+
+    QString activeStyle =
+        QString("QPushButton {"
+                "  background: transparent;"
+                "  color: %1;"
+                "  border: none;"
+                "  padding: 10px 14px;"
+                "  font-size: 16px;"
+                "  font-weight: 600;"
+                "  text-align: left;"
+                "}"
+                "QPushButton:hover {"
+                "  background: %2;"
+                "  border-radius: 6px;"
+                "  color: %1;"
+                "}")
+            .arg(activeColor, activeHoverBg);
     
-    likeBtn->setStyleSheet(liked ? activeStyle : baseStyle);
-    shareBtn->setStyleSheet(shared ? activeStyle : baseStyle);
-    repostBtn->setStyleSheet(reposted ? activeStyle : baseStyle);
+    // 更新按钮样式和图标（夜间/高对比使用 *1.svg，日间使用默认）
+    const bool useAltIcons = highContrast_ || !dayMode_;
+    if (likeBtn) {
+        likeBtn->setStyleSheet(liked ? activeStyle : baseStyle);
+        likeBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/like1.svg")
+                                           : QStringLiteral(":/icons/icons/like.svg")));
+    }
+    if (commentBtn) {
+        commentBtn->setStyleSheet(baseStyle);
+        commentBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/comment1.svg")
+                                              : QStringLiteral(":/icons/icons/comment.svg")));
+    }
+    if (shareBtn) {
+        shareBtn->setStyleSheet(shared ? activeStyle : baseStyle);
+        shareBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/share1.svg")
+                                            : QStringLiteral(":/icons/icons/share.svg")));
+    }
+    if (repostBtn) {
+        repostBtn->setStyleSheet(reposted ? activeStyle : baseStyle);
+        repostBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/repost1.svg")
+                                             : QStringLiteral(":/icons/icons/repost.svg")));
+    }
+}
+
+void FriendItem::applyThemeStyles()
+{
+    QString cardBackground;
+    QString borderColor;
+    if (highContrast_) {
+        cardBackground = QStringLiteral("#000000");
+        borderColor = QStringLiteral("#f4c430");
+    } else if (dayMode_) {
+        cardBackground = QStringLiteral(
+            "qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+            " stop:0 rgba(255,255,255,0.96),"
+            " stop:0.35 rgba(235,242,255,0.94),"
+            " stop:1 rgba(223,235,255,0.90))");
+        borderColor = QStringLiteral("rgba(58,82,132,0.3)");
+    } else {
+        cardBackground = QStringLiteral(
+            "qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+            " stop:0 rgba(8,20,60,0.90),"
+            " stop:0.3 rgba(58,125,255,0.15),"
+            " stop:0.6 rgba(108,173,255,0.12),"
+            " stop:1 rgba(12,40,118,0.88))");
+        borderColor = QStringLiteral("rgba(108,173,255,0.5)");
+    }
+
+    setStyleSheet(QStringLiteral(
+        "QWidget {"
+        "  background: %1;"
+        "  border: 2px solid %2;"
+        "  border-radius: 16px;"
+        "  padding: 0px;"
+        "  margin: 8px 0px;"
+        "}"
+    ).arg(cardBackground, borderColor));
+
+    const QString avatarBorder = highContrast_ ? "#f4c430" : "#6CADFF";
+    if (avatar) {
+        avatar->setStyleSheet(QStringLiteral(
+            "QLabel#friendAvatar {"
+            "  border: 2px solid %1;"
+            "  border-radius: 20px;"
+            "  background-color: transparent;"
+            "}"
+            "QLabel#friendAvatar:hover {"
+            "  border: 3px solid #FF8AA0;"
+            "}"
+        ).arg(avatarBorder));
+    }
+
+    const QString usernameColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#0c1b33" : "#ffffff");
+    const QString usernameHover = highContrast_ ? "#ffffff" : (dayMode_ ? "#3A7DFF" : "#6CADFF");
+    if (usernameLbl) {
+        usernameLbl->setStyleSheet(QStringLiteral(
+            "QLabel#friendUsername {"
+            "  font-weight: 600;"
+            "  font-size: 15px;"
+            "  color: %1;"
+            "  background: transparent;"
+            "}"
+            "QLabel#friendUsername:hover {"
+            "  color: %2;"
+            "}"
+        ).arg(usernameColor, usernameHover));
+    }
+
+    const QString timeColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#5f6d8c" : "#a8c5ff");
+    if (timeLbl) {
+        timeLbl->setStyleSheet(QStringLiteral(
+            "QLabel#friendTime {"
+            "  font-size: 13px;"
+            "  font-weight: 500;"
+            "  color: %1;"
+            "  background: transparent;"
+            "}"
+        ).arg(timeColor));
+    }
+
+    const QString tagColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#3353b3" : "#6CADFF");
+    if (tagLbl) {
+        tagLbl->setStyleSheet(QStringLiteral(
+            "QLabel#friendTag {"
+            "  color: %1;"
+            "  font-size: %2px;"
+            "  font-weight: 600;"
+            "  padding: 4px 12px;"
+            "  background: transparent;"
+            "}"
+        ).arg(tagColor,
+              highContrast_ ? QStringLiteral("16") : QStringLiteral("14")));
+    }
+
+    // 高对比模式下，正文也使用黄色以获得最大对比度
+    const QString contentColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#2d3a4f" : "#e8f0ff");
+    if (contentLbl) {
+        contentLbl->setStyleSheet(QStringLiteral(
+            "QLabel#friendCaption {"
+            "  color: %1;"
+            "  font-size: %2px;"
+            "  font-weight: 400;"
+            "  line-height: 1.5;"
+            "  padding: 0px 12px 8px 12px;"
+            "  background: transparent;"
+            "}"
+        ).arg(contentColor,
+              highContrast_ ? QStringLiteral("16") : QStringLiteral("14")));
+    }
+
+    const QString thumbBg = highContrast_ ? "#000000" : (dayMode_ ? "#f6f8ff" : "#0D0D0D");
+    const QString thumbTextColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#20324f" : "#ffffff");
+    if (thumbLbl) {
+        thumbLbl->setStyleSheet(QStringLiteral(
+            "QLabel#friendVideoThumb {"
+            "  background: %1;"
+            "  color: %2;"
+            "  font-size: 48px;"
+            "}"
+        ).arg(thumbBg, thumbTextColor));
+    }
+
+    const QString inputBg = highContrast_ ? "rgba(244,196,48,0.12)" : (dayMode_ ? "rgba(51,83,179,0.08)" : "rgba(108,173,255,0.12)");
+    const QString inputBorder = highContrast_ ? "#f4c430" : (dayMode_ ? "rgba(51,83,179,0.45)" : "#6CADFF");
+    const QString inputFocusBg = highContrast_ ? "rgba(244,196,48,0.2)" : (dayMode_ ? "rgba(51,83,179,0.16)" : "rgba(108,173,255,0.2)");
+    const QString inputColor = highContrast_ ? "#ffffff" : (dayMode_ ? "#0c1b33" : "#ffffff");
+    const QString inputFocusBorder = highContrast_ ? "#ffd700" : (dayMode_ ? "#3353b3" : "#3A7DFF");
+    if (commentInput) {
+        commentInput->setStyleSheet(QStringLiteral(
+            "QLineEdit#friendCommentInput {"
+            "  background: %1;"
+            "  border: 1px solid %2;"
+            "  border-radius: 20px;"
+            "  padding: 8px 16px;"
+            "  color: %4;"
+            "  font-size: 14px;"
+            "}"
+            "QLineEdit#friendCommentInput:focus {"
+            "  border: 1px solid %3;"
+            "  background: %5;"
+            "}"
+        ).arg(inputBg, inputBorder, inputFocusBorder, inputColor, inputFocusBg));
+    }
+
+    updateCountDisplay();
+    restyleCommentLabels();
+}
+
+void FriendItem::restyleCommentLabels()
+{
+    if (!commentArea) {
+        return;
+    }
+    const auto labels = commentArea->findChildren<QLabel*>();
+    const QString commentAvatarBorder = highContrast_ ? "#f4c430" : "#6CADFF";
+    for (QLabel *label : labels) {
+        if (!label) {
+            continue;
+        }
+        if (label->property("commenterName").isValid()) {
+            restyleCommentLabel(label);
+        } else if (label->property("isCommentAvatar").isValid()) {
+            label->setStyleSheet(QStringLiteral(
+                "border: 2px solid %1;"
+                "border-radius: 16px;"
+                "background-color: transparent;"
+            ).arg(commentAvatarBorder));
+        }
+    }
+}
+
+void FriendItem::restyleCommentLabel(QLabel *label)
+{
+    if (!label) {
+        return;
+    }
+    const QString commenterName = label->property("commenterName").toString();
+    const QString commentBody = label->property("commentBody").toString();
+    const QString nameColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#3353b3" : "#6CADFF");
+    // 在高对比模式下，正文也使用黄色以获得最大对比度
+    const QString bodyColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#2d3a4f" : "#e8f0ff");
+    const QString html = QStringLiteral(
+        "<span style='font-weight:600; color:%1;'>%2</span> "
+        "<span style='color:%3;'>%4</span>")
+            .arg(nameColor,
+                 commenterName.toHtmlEscaped(),
+                 bodyColor,
+                 commentBody.toHtmlEscaped());
+    label->setText(html);
+    label->setStyleSheet(QStringLiteral(
+        "color: %1;"
+        "font-size: %2px;"
+        "background: transparent;"
+        "line-height: 1.4;"
+    ).arg(bodyColor,
+          highContrast_ ? QStringLiteral("15") : QStringLiteral("14")));
+}
+
+void FriendItem::setDayMode(bool dayMode)
+{
+    if (dayMode_ == dayMode) {
+        return;
+    }
+    dayMode_ = dayMode;
+    applyThemeStyles();
+}
+
+void FriendItem::setHighContrastMode(bool enabled)
+{
+    if (highContrast_ == enabled) {
+        return;
+    }
+    highContrast_ = enabled;
+    // 高对比模式下不再使用日间模式的浅色背景
+    if (highContrast_) {
+        dayMode_ = false;
+    }
+    applyThemeStyles();
 }
 
 void FriendItem::setThumbnail(const QPixmap &pixmap)
@@ -515,7 +859,7 @@ bool FriendItem::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->type() == QEvent::MouseButtonPress)
     {
-        if (watched == avatar)
+        if (watched == avatar || watched == usernameLbl)
         {
             emit avatarClicked(usernameLbl->text());
             return true;

@@ -33,13 +33,16 @@ public:
     static FriendItem* fromPublish(const QString &videoThumb,
                                    const FriendPostCopy &copy = FriendPostCopy());
 
+    void setDayMode(bool dayMode);
+    void setHighContrastMode(bool enabled);
+
 signals:
     void commentRequested(FriendItem *self);
     void avatarClicked(const QString &username);
     void thumbnailClicked(int videoIndex);  // 缩略图被点击时发出视频索引
 
 public slots:
-    void addComment(const QString &text);
+    void addComment(const QString &text, const QString &commenter = "You");  // 添加评论，支持指定评论者
     void setThumbnail(const QPixmap &pixmap);  // 设置缩略图
     void updateThumbnailSize();  // 公开方法，允许外部触发更新
 
@@ -89,7 +92,13 @@ private:
     int lastThumbHeight_ = -1;
     QPixmap originalThumbPixmap_;  // 缓存原始缩略图
 
+    bool dayMode_ = false;
+    bool highContrast_ = false;
+
     void updateCountDisplay();
+    void applyThemeStyles();
+    void restyleCommentLabels();
+    void restyleCommentLabel(QLabel *label);
 };
 
 #endif // FRIENDITEM_H

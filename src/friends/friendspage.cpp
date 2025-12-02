@@ -12,6 +12,7 @@
 #include <QTimer>
 #include "../player/the_button.h"
 #include "../shared/language_manager.h"
+#include "../shared/narration_manager.h"
 #include <QVector>
 #include <QApplication>
 
@@ -79,18 +80,12 @@ FriendsPage::FriendsPage(QWidget *parent)
     : QWidget(parent)
 {
     setObjectName("friendsPage");
-    setStyleSheet(
-        "QWidget#friendsPage {"
-        "  background-color: #00040d;"
-        "  border: 3px solid #6CADFF;"
-        "  border-radius: 8px;"
-        "}"
-        "QScrollArea { background: transparent; border: none; }"
-        "QScrollArea > QWidget > QWidget { background: transparent; }"
-    );
+    setAttribute(Qt::WA_StyledBackground, true);
 
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 删除滚动条
     scrollArea->setStyleSheet("border:none; background: transparent;");
     scrollArea->viewport()->setStyleSheet("background: transparent;");
 
@@ -104,8 +99,10 @@ FriendsPage::FriendsPage(QWidget *parent)
 
     QVBoxLayout *main = new QVBoxLayout(this);
     main->setContentsMargins(24, 0, 12, 0);
-    main->addWidget(scrollArea);
+    main->setSpacing(0);
+    main->addWidget(scrollArea, 1); // 使用stretch factor让scrollArea填充空间
     
+    applyThemeStyles();
     updateResponsiveLayout();
 }
 
@@ -113,18 +110,12 @@ FriendsPage::FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     : QWidget(parent)
 {
     setObjectName("friendsPage");
-    setStyleSheet(
-        "QWidget#friendsPage {"
-        "  background-color: #00040d;"
-        "  border: 3px solid #6CADFF;"
-        "  border-radius: 8px;"
-        "}"
-        "QScrollArea { background: transparent; border: none; }"
-        "QScrollArea > QWidget > QWidget { background: transparent; }"
-    );
+    setAttribute(Qt::WA_StyledBackground, true);
 
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 删除滚动条
     scrollArea->setStyleSheet("border:none; background: transparent;");
     scrollArea->viewport()->setStyleSheet("background: transparent;");
 
@@ -138,9 +129,11 @@ FriendsPage::FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 
     QVBoxLayout *main = new QVBoxLayout(this);
     main->setContentsMargins(24, 0, 12, 0);
-    main->addWidget(scrollArea);
+    main->setSpacing(0);
+    main->addWidget(scrollArea, 1); // 使用stretch factor让scrollArea填充空间
 
     initializeWithVideos(videos);
+    applyThemeStyles();
     updateResponsiveLayout();
 }
 
@@ -154,6 +147,7 @@ void FriendsPage::setVideos(const std::vector<TheButtonInfo> &videos)
     }
     
     initializeWithVideos(videos);
+    propagateThemeToItems();
 }
 
 void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
@@ -169,6 +163,7 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
             FriendPostCopy copy = randomCopyForUser(user);
             // 创建一个空的缩略图路径
             FriendItem *item = new FriendItem("", user, "", t, -1, copy);
+            item->setDayMode(dayMode_ && !highContrastMode_);
             connect(item, &FriendItem::commentRequested, this, &FriendsPage::onCommentRequested);
             listLayout->addWidget(item);
         }
@@ -222,6 +217,7 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
         int videoIndex = i % videos.size();
         
         FriendItem *item = new FriendItem(avatarPath, user, thumbPath, t, videoIndex, copy);
+        item->setDayMode(dayMode_ && !highContrastMode_);
         
         // 如果有缩略图，设置它
         if (hasThumbnail) {
@@ -229,9 +225,26 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
         }
         
         connect(item, &FriendItem::commentRequested, this, &FriendsPage::onCommentRequested);
+        connect(item, &FriendItem::avatarClicked, this, &FriendsPage::goToProfile);
         connect(item, &FriendItem::thumbnailClicked, this, [this](int index) {
             emit playVideoRequested(index);
         });
+        
+        // 随机生成一些评论（30%的概率）
+        if (QRandomGenerator::global()->bounded(100) < 30) {
+            QStringList commenters = {"Alice", "Bob", "Ethan", "Luna", "Olivia", "James", "Lucas", "Sophia", "Emma", "Noah"};
+            QStringList comments = {
+                "太棒了！", "Awesome!", "喜欢这个！", "Love it!", "真不错", "Nice!", 
+                "👍", "🔥", "太美了", "Beautiful!", "赞", "Great!"
+            };
+            int numComments = QRandomGenerator::global()->bounded(3) + 1; // 1-3条评论
+            for (int j = 0; j < numComments; ++j) {
+                QString commenter = commenters.at(QRandomGenerator::global()->bounded(commenters.size()));
+                QString comment = comments.at(QRandomGenerator::global()->bounded(comments.size()));
+                item->addComment(comment, commenter);
+            }
+        }
+        
         listLayout->addWidget(item);
     }
 }
@@ -239,6 +252,7 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
 void FriendsPage::addNewPost(const QString &videoThumb)
 {
     FriendItem *item = FriendItem::fromPublish(videoThumb, randomCopyForUser("Me"));
+    item->setDayMode(dayMode_ && !highContrastMode_);
     connect(item, &FriendItem::commentRequested, this, &FriendsPage::onCommentRequested);
     listLayout->insertWidget(0, item);
     
@@ -277,6 +291,12 @@ void FriendsPage::onCommentRequested(FriendItem *item)
                                          QLineEdit::Normal, "", &ok);
     if (!ok || text.trimmed().isEmpty()) return;
     item->addComment(text);
+    
+    // 语音播报
+    NarrationManager::instance().narrate(
+        QString::fromUtf8("评论已添加"),
+        "Comment added"
+    );
 }
 
 void FriendsPage::resizeEvent(QResizeEvent *event)
@@ -351,4 +371,81 @@ void FriendsPage::updateResponsiveLayout()
             }
         }
     });
+}
+
+void FriendsPage::setDayMode(bool dayMode)
+{
+    if (highContrastMode_) {
+        dayMode_ = false;
+    } else {
+        dayMode_ = dayMode;
+    }
+    applyThemeStyles();
+    propagateThemeToItems();
+}
+
+void FriendsPage::setHighContrastMode(bool enabled)
+{
+    if (highContrastMode_ == enabled) {
+        return;
+    }
+    highContrastMode_ = enabled;
+    if (highContrastMode_) {
+        dayMode_ = false;
+    }
+    applyThemeStyles();
+    propagateThemeToItems();
+}
+
+void FriendsPage::applyThemeStyles()
+{
+    QString style;
+    if (highContrastMode_) {
+        style = QStringLiteral(
+            "QWidget#friendsPage {"
+            "  background-color: #000000;"
+            "  border: 3px solid #f4c430;"
+            "  border-radius: 12px;"
+            "}"
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"
+        );
+    } else if (dayMode_) {
+        style = QStringLiteral(
+            "QWidget#friendsPage {"
+            "  background-color: rgba(255,255,255,0.95);"
+            "  border: 2px solid rgba(58,82,132,0.25);"
+            "  border-radius: 12px;"
+            "  box-shadow: 0 12px 30px rgba(15,35,80,0.08);"
+            "}"
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"
+        );
+    } else {
+        style = QStringLiteral(
+            "QWidget#friendsPage {"
+            "  background-color: #00040d;"
+            "  border: 3px solid #6CADFF;"
+            "  border-radius: 12px;"
+            "}"
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }"
+        );
+    }
+    setStyleSheet(style);
+}
+
+void FriendsPage::propagateThemeToItems()
+{
+    if (!listWidget) {
+        return;
+    }
+    const bool useDay = dayMode_ && !highContrastMode_;
+    const auto items = listWidget->findChildren<FriendItem*>();
+    for (FriendItem *item : items) {
+        if (item) {
+            item->setHighContrastMode(highContrastMode_);
+            item->setDayMode(useDay);
+        }
+    }
 }

@@ -43,7 +43,8 @@ SOURCES += \
 
 # Shared utilities
 SOURCES += \
-    shared/language_manager.cpp
+    shared/language_manager.cpp \
+    shared/narration_manager.cpp
 
 # 头文件
 HEADERS += \
@@ -57,7 +58,8 @@ HEADERS += \
     player/the_button.h \
     profile/profile_page.h \
     chat/chat_page.h \
-    shared/language_manager.h
+    shared/language_manager.h \
+    shared/narration_manager.h
 
 # 包含路径设置（相对于 src 目录）
 INCLUDEPATH += \

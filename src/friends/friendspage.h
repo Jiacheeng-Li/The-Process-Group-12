@@ -19,6 +19,8 @@ public:
     explicit FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *parent = nullptr);
     void addNewPost(const QString &videoThumb);
     void setVideos(const std::vector<TheButtonInfo> &videos);
+    void setDayMode(bool dayMode);
+    void setHighContrastMode(bool enabled);
 
 signals:
     void goToProfile(const QString &username);
@@ -33,11 +35,15 @@ private slots:
 private:
     void initializeWithVideos(const std::vector<TheButtonInfo> &videos);
     void updateResponsiveLayout();
+    void applyThemeStyles();
+    void propagateThemeToItems();
     
     QWidget *listWidget;
     QVBoxLayout *listLayout;
     QScrollArea *scrollArea;
     std::vector<TheButtonInfo> videoList;
+    bool dayMode_ = false;
+    bool highContrastMode_ = false;
 };
 
 #endif // FRIENDSPAGE_H

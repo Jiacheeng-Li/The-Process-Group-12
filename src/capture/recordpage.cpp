@@ -9,6 +9,7 @@
 #include <QLabel>
 #include "popuppanel.h"
 #include "../shared/language_manager.h"
+#include "../shared/narration_manager.h"
 
 RecordPage::RecordPage(QWidget *parent)
     : QWidget(parent)
@@ -179,11 +180,21 @@ void RecordPage::onRecordButtonClicked()
     {
         isRecording = true;
         pulseTimer.start();
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("开始录制"),
+            "Recording started"
+        );
     }
     else
     {
         isRecording = false;
         pulseTimer.stop();
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("停止录制"),
+            "Recording stopped"
+        );
         recordButton->setStyleSheet(
             "background-color: red;"
             "border-radius: 30px;"
@@ -202,8 +213,18 @@ void RecordPage::onSwitchButtonClicked()
         frontCamera->setStyleSheet(
             "background-color:#999; border:2px solid white; border-radius:8px;"
             );
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("切换到后置摄像头"),
+            "Switched to back camera"
+            );
     } else {
         backCamera->setStyleSheet("background-color:#999;");
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("切换到前置摄像头"),
+            "Switched to front camera"
+        );
         frontCamera->setStyleSheet(
             "background-color:black; border:2px solid white; border-radius:8px;"
             );
@@ -219,8 +240,18 @@ void RecordPage::onPauseButtonClicked()
         pulseTimer.stop();
         recordButton->setStyleSheet("background:red;border-radius:30px;border:3px solid #6CADFF;");
         pauseButton->setIcon(QIcon(":/icons/icons/pause.svg"));   // Show pause icon while paused
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("暂停录制"),
+            "Recording paused"
+        );
     } else {
         pulseTimer.start();
+        // 语音播报
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("继续录制"),
+            "Recording resumed"
+        );
         pauseButton->setIcon(QIcon(":/icons/icons/play.svg"));   // Revert to play icon when resuming
     }
 }
@@ -243,6 +274,12 @@ void RecordPage::onDraftButtonClicked()
     const auto pick = [&](const QString &zh, const QString &en) {
         return langMgr.pick(zh, en);
     };
+
+    // 语音播报
+    NarrationManager::instance().narrate(
+        QString::fromUtf8("打开草稿箱"),
+        "Open drafts"
+    );
 
     if (draftList.isEmpty()) {
         QMessageBox::information(this,

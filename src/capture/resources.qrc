@@ -21,6 +21,26 @@
         <file>icons/like.svg</file>
         <file>icons/comment.svg</file>
         <file>icons/repost.svg</file>
+        <file>icons/close1.svg</file>
+        <file>icons/location_off1.svg</file>
+        <file>icons/location_on1.svg</file>
+        <file>icons/mention1.svg</file>
+        <file>icons/privacy1.svg</file>
+        <file>icons/share1.svg</file>
+        <file>icons/share_to_friends1.svg</file>
+        <file>icons/follow1.svg</file>
+        <file>icons/share_profile1.svg</file>
+        <file>icons/mute1.svg</file>
+        <file>icons/next1.svg</file>
+        <file>icons/prev1.svg</file>
+        <file>icons/tag1.svg</file>
+        <file>icons/visibility1.svg</file>
+        <file>icons/volume1.svg</file>
+        <file>icons/play1.svg</file>
+        <file>icons/pause1.svg</file>
+        <file>icons/like1.svg</file>
+        <file>icons/comment1.svg</file>
+        <file>icons/repost1.svg</file>
     </qresource>
 </RCC>
 
