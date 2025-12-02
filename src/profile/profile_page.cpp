@@ -36,28 +36,8 @@ QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
     return base;
 }
 
-QWidget *createStatBadge(const QString &value, const QString &label, QWidget *parent) {
-    auto *wrapper = new QWidget(parent);
-    auto *layout = new QVBoxLayout(wrapper);
-    layout->setSpacing(6);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    auto *valueLabel = new QLabel(value, wrapper);
-    valueLabel->setObjectName("statValue");
-    auto *labelLabel = new QLabel(label, wrapper);
-    labelLabel->setObjectName("statLabel");
-
-    layout->addWidget(valueLabel, 0, Qt::AlignHCenter);
-    layout->addWidget(labelLabel, 0, Qt::AlignHCenter);
-    return wrapper;
-}
-} // namespace
-
-ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *parent)
-    : QWidget(parent),
-      videos_(videos) {
-    setObjectName("profilePageRoot");
-    setStyleSheet(
+QString defaultProfileStyle() {
+    return QStringLiteral(
         "QWidget#profilePageRoot {"
         "  background: qradialgradient(cx:0.25, cy:0.2, radius:1.25,"
         "    stop:0 #091230, stop:0.5 #030918, stop:1 #00040a);"
@@ -136,6 +116,169 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         "  border: 1px solid rgba(76,162,255,0.5);"
         "}"
         "QLabel#sectionTitle { font-size: 20px; font-weight: 700; color: white; }");
+}
+
+QString highContrastProfileStyle() {
+    return QStringLiteral(
+        "QWidget#profilePageRoot { background: #0b0b0b; }"
+        "QScrollArea { background: transparent; border: none; }"
+        "QFrame#contentShell {"
+        "  background: #1b1b1b;"
+        "  border-radius: 48px;"
+        "  border: 2px solid #f4c430;"
+        "}"
+        "QFrame#heroCard {"
+        "  background: #0f0f0f;"
+        "  border-radius: 32px;"
+        "  border: 2px solid #ff9f1c;"
+        "}"
+        "QLabel#displayName { font-size: 30px; font-weight: 700; color: #ffffff; }"
+        "QLabel#username { font-size: 15px; color: #f9f871; }"
+        "QLabel#bioLabel { color: #ffffff; }"
+        "QLabel#statValue { font-size: 20px; font-weight: 700; color: #ffffff; }"
+        "QLabel#statLabel { font-size: 12px; text-transform: uppercase; color: #f4c430; letter-spacing: 0.2em; }"
+        "QPushButton#primaryCta {"
+        "  background-color: #ff9f1c;"
+        "  border-radius: 22px;"
+        "  padding: 12px 26px;"
+        "  border: none;"
+        "  color: #000;"
+        "  font-weight: 700;"
+        "}"
+        "QPushButton#secondaryCta {"
+        "  background-color: transparent;"
+        "  color: #ffffff;"
+        "  border: 2px solid #f4c430;"
+        "  border-radius: 22px;"
+        "  padding: 11px 24px;"
+        "  font-weight: 600;"
+        "}"
+        "QFrame#videoFilter {"
+        "  background: #0f0f0f;"
+        "  border-radius: 20px;"
+        "  border: 2px solid #f4c430;"
+        "}"
+        "QFrame#videoGrid {"
+        "  background: #0f0f0f;"
+        "  border-radius: 30px;"
+        "  border: 2px solid #f4c430;"
+        "  padding: 6px;"
+        "}"
+        "QPushButton#filterTab {"
+        "  background-color: transparent;"
+        "  color: #f4c430;"
+        "  border: none;"
+        "  font-weight: 600;"
+        "  padding: 8px 16px;"
+        "  border-radius: 14px;"
+        "}"
+        "QPushButton#filterTab:checked {"
+        "  color: #000;"
+        "  background-color: #f4c430;"
+        "}"
+        "QPushButton#videoTile {"
+        "  background-color: #141414;"
+        "  border: 2px solid #f4c430;"
+        "  border-radius: 20px;"
+        "  min-height: 260px;"
+        "}"
+        "QLabel#sectionTitle { font-size: 20px; font-weight: 700; color: #f9f871; }");
+}
+
+struct ProfileCopy {
+    QString displayName;
+    QString username;
+    QString bio;
+    QString follow;
+    QString following;
+    QString share;
+    QString replays;
+    QString filterGrid;
+    QString filterDrafts;
+    QString filterTagged;
+    QString emptyGrid;
+    QString emptyDrafts;
+    QString emptyTagged;
+    QString statFollowing;
+    QString statFollowers;
+    QString statLikes;
+};
+
+ProfileCopy localizedProfileCopy(AppLanguage language) {
+    if (language == AppLanguage::English) {
+        return {
+            "Lina Mendes",
+            "@linagoesreal",
+            "Creator of rooftop BeReal drops • chasing golden hour on every continent • new lens drops every Sunday.",
+            "Follow",
+            "Following",
+            "Share profile",
+            "Replays",
+            "Grid",
+            "Drafts",
+            "Tagged",
+            "No drops yet. Start sharing your world to fill this grid.",
+            "Drafts you save will land here before they are published.",
+            "When collaborators tag Lina, the replays will appear here.",
+            "Following",
+            "Followers",
+            "Likes"};
+    }
+
+    return {
+        QString::fromUtf8("莉娜·门德斯"),
+        QString::fromUtf8("@linagoesreal"),
+        QString::fromUtf8("屋顶双摄创作者 · 追逐每一座城市的黄金时刻 · 每周日更新新镜头。"),
+        QString::fromUtf8("关注"),
+        QString::fromUtf8("已关注"),
+        QString::fromUtf8("分享主页"),
+        QString::fromUtf8("回放"),
+        QString::fromUtf8("网格"),
+        QString::fromUtf8("草稿"),
+        QString::fromUtf8("被标记"),
+        QString::fromUtf8("还没有内容，快去记录真实瞬间吧。"),
+        QString::fromUtf8("保存的草稿会出现在这里。"),
+        QString::fromUtf8("好友标记你后，合集会出现在这里。"),
+        QString::fromUtf8("关注"),
+        QString::fromUtf8("粉丝"),
+        QString::fromUtf8("点赞")
+    };
+}
+
+QWidget *createStatBadge(const QString &value,
+                         const QString &label,
+                         const QString &labelKey,
+                         QWidget *parent,
+                         std::vector<std::pair<QLabel *, QString>> *registry) {
+    auto *wrapper = new QWidget(parent);
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setSpacing(6);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    auto *valueLabel = new QLabel(value, wrapper);
+    valueLabel->setObjectName("statValue");
+    auto *labelLabel = new QLabel(label, wrapper);
+    labelLabel->setObjectName("statLabel");
+    labelLabel->setProperty("statKey", labelKey);
+
+    layout->addWidget(valueLabel, 0, Qt::AlignHCenter);
+    layout->addWidget(labelLabel, 0, Qt::AlignHCenter);
+
+    if (registry) {
+        registry->push_back({labelLabel, labelKey});
+    }
+
+    return wrapper;
+}
+} // namespace
+
+ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *parent)
+    : QWidget(parent),
+      videos_(videos) {
+    setObjectName("profilePageRoot");
+    defaultStyleSheet_ = defaultProfileStyle();
+    highContrastStyleSheet_ = highContrastProfileStyle();
+    setStyleSheet(defaultStyleSheet_);
 
     auto *rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
@@ -179,10 +322,10 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     auto *identityCol = new QVBoxLayout();
     identityCol->setSpacing(8);
 
-    auto *displayName = new QLabel("Lina Mendes", heroCard);
-    displayName->setObjectName("displayName");
-    auto *username = new QLabel("@linagoesreal", heroCard);
-    username->setObjectName("username");
+    displayNameLabel_ = new QLabel("Lina Mendes", heroCard);
+    displayNameLabel_->setObjectName("displayName");
+    usernameLabel_ = new QLabel("@linagoesreal", heroCard);
+    usernameLabel_->setObjectName("username");
 
     auto *ctaRow = new QHBoxLayout();
     ctaRow->setSpacing(12);
@@ -195,14 +338,14 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         applyFollowState(checked);
     });
 
-    auto *shareBtn = new QPushButton("Share profile", heroCard);
-    shareBtn->setObjectName("secondaryCta");
+    shareButton_ = new QPushButton("Share profile", heroCard);
+    shareButton_->setObjectName("secondaryCta");
     ctaRow->addWidget(followBtn);
-    ctaRow->addWidget(shareBtn);
+    ctaRow->addWidget(shareButton_);
     ctaRow->addStretch();
 
-    identityCol->addWidget(displayName);
-    identityCol->addWidget(username);
+    identityCol->addWidget(displayNameLabel_);
+    identityCol->addWidget(usernameLabel_);
     identityCol->addLayout(ctaRow);
 
     identityRow_->addWidget(avatar);
@@ -211,37 +354,38 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 
     statsRow_ = new QHBoxLayout();
     statsRow_->setSpacing(24);
-    statsRow_->addWidget(createStatBadge("428", "Following", heroCard));
-    statsRow_->addWidget(createStatBadge("18.3K", "Followers", heroCard));
-    statsRow_->addWidget(createStatBadge("1.2M", "Likes", heroCard));
+    statsRow_->addWidget(createStatBadge("428", "Following", "stat.following", heroCard, &statLabelWidgets_));
+    statsRow_->addWidget(createStatBadge("18.3K", "Followers", "stat.followers", heroCard, &statLabelWidgets_));
+    statsRow_->addWidget(createStatBadge("1.2M", "Likes", "stat.likes", heroCard, &statLabelWidgets_));
     statsRow_->addStretch();
 
-    auto *bio = new QLabel("Creator of rooftop BeReal drops • chasing golden hour on every continent • new lens drops every Sunday.", heroCard);
-    bio->setObjectName("bioLabel");
-    bio->setWordWrap(true);
+    bioLabel_ = new QLabel("Creator of rooftop BeReal drops • chasing golden hour on every continent • new lens drops every Sunday.", heroCard);
+    bioLabel_->setObjectName("bioLabel");
+    bioLabel_->setWordWrap(true);
 
     heroLayout->addLayout(identityRow_);
     heroLayout->addLayout(statsRow_);
-    heroLayout->addWidget(bio);
+    heroLayout->addWidget(bioLabel_);
 
     auto *filterFrame = new QFrame(contentShell);
     filterFrame->setObjectName("videoFilter");
     auto *filterLayout = new QHBoxLayout(filterFrame);
     filterLayout->setContentsMargins(20, 12, 20, 12);
     filterLayout->setSpacing(10);
-    auto *videosLabel = new QLabel("Replays", filterFrame);
-    videosLabel->setObjectName("sectionTitle");
-    filterLayout->addWidget(videosLabel);
+    videosLabel_ = new QLabel("Replays", filterFrame);
+    videosLabel_->setObjectName("sectionTitle");
+    filterLayout->addWidget(videosLabel_);
     filterLayout->addStretch();
 
     struct FilterSpec {
         QString label;
         FilterMode mode;
+        QString key;
     };
     const std::vector<FilterSpec> filterSpecs = {
-        {"Grid", FilterMode::Grid},
-        {"Drafts", FilterMode::Drafts},
-        {"Tagged", FilterMode::Tagged}
+        {"Grid", FilterMode::Grid, "grid"},
+        {"Drafts", FilterMode::Drafts, "drafts"},
+        {"Tagged", FilterMode::Tagged, "tagged"}
     };
 
     auto *filterGroup = new QButtonGroup(filterFrame);
@@ -252,6 +396,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         tab->setObjectName("filterTab");
         tab->setCheckable(true);
         tab->setCursor(Qt::PointingHandCursor);
+        tab->setProperty("filterKey", spec.key);
         filterGroup->addButton(tab, static_cast<int>(spec.mode));
         filterLayout->addWidget(tab);
         filterButtons_.push_back(tab);
@@ -306,8 +451,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     contentLayout->addWidget(contentShell);
     contentLayout->addStretch(1);
 
-    applyFollowState(false);
-    rebuildGrid();
+    rebuildStrings();
     updateResponsiveLayout();
 }
 
@@ -414,7 +558,7 @@ void ProfilePage::applyFollowState(bool following) {
     if (!followButton_) {
         return;
     }
-    followButton_->setText(following ? "Following" : "Follow");
+    followButton_->setText(following ? followingLabel_ : followLabel_);
     if (!following && followButton_->isChecked()) {
         followButton_->blockSignals(true);
         followButton_->setChecked(false);
@@ -437,12 +581,88 @@ const std::vector<int> &ProfilePage::orderFor(int modeIndex) const {
 QString ProfilePage::emptyStateFor(int modeIndex) const {
     switch (static_cast<FilterMode>(modeIndex)) {
         case FilterMode::Grid:
-            return "No drops yet. Start sharing your world to fill this grid.";
+            return emptyGridLabel_;
         case FilterMode::Drafts:
-            return "Drafts you save will land here before they are published.";
+            return emptyDraftsLabel_;
         case FilterMode::Tagged:
-            return "When collaborators tag Lina, the replays will appear here.";
+            return emptyTaggedLabel_;
     }
     return {};
+}
+
+void ProfilePage::setLanguage(AppLanguage language) {
+    if (language_ == language) {
+        rebuildStrings();
+        return;
+    }
+    language_ = language;
+    rebuildStrings();
+}
+
+void ProfilePage::rebuildStrings() {
+    const ProfileCopy copy = localizedProfileCopy(language_);
+    displayNameText_ = copy.displayName;
+    usernameText_ = copy.username;
+    bioText_ = copy.bio;
+    followLabel_ = copy.follow;
+    followingLabel_ = copy.following;
+    shareLabel_ = copy.share;
+    replaysLabel_ = copy.replays;
+    gridLabel_ = copy.filterGrid;
+    draftsLabel_ = copy.filterDrafts;
+    taggedLabel_ = copy.filterTagged;
+    emptyGridLabel_ = copy.emptyGrid;
+    emptyDraftsLabel_ = copy.emptyDrafts;
+    emptyTaggedLabel_ = copy.emptyTagged;
+
+    if (displayNameLabel_) {
+        displayNameLabel_->setText(displayNameText_);
+    }
+    if (usernameLabel_) {
+        usernameLabel_->setText(usernameText_);
+    }
+    if (bioLabel_) {
+        bioLabel_->setText(bioText_);
+    }
+    if (shareButton_) {
+        shareButton_->setText(shareLabel_);
+    }
+    if (videosLabel_) {
+        videosLabel_->setText(replaysLabel_);
+    }
+    for (auto *button : filterButtons_) {
+        const QString key = button->property("filterKey").toString();
+        if (key == "grid") {
+            button->setText(gridLabel_);
+        } else if (key == "drafts") {
+            button->setText(draftsLabel_);
+        } else if (key == "tagged") {
+            button->setText(taggedLabel_);
+        }
+    }
+
+    for (auto &entry : statLabelWidgets_) {
+        if (!entry.first) {
+            continue;
+        }
+        if (entry.second == "stat.following") {
+            entry.first->setText(copy.statFollowing);
+        } else if (entry.second == "stat.followers") {
+            entry.first->setText(copy.statFollowers);
+        } else if (entry.second == "stat.likes") {
+            entry.first->setText(copy.statLikes);
+        }
+    }
+
+    applyFollowState(followButton_ && followButton_->isChecked());
+    rebuildGrid();
+}
+
+void ProfilePage::setHighContrastMode(bool enabled) {
+    if (highContrastMode_ == enabled) {
+        return;
+    }
+    highContrastMode_ = enabled;
+    setStyleSheet(enabled ? highContrastStyleSheet_ : defaultStyleSheet_);
 }
 
