@@ -32,43 +32,43 @@ static QString getAvatarPathForUser(const QString &username)
     int index = avatarUsers.indexOf(username);
     
     if (index >= 0 && index < 5) {
-        // 获取头像文件路径（相对于可执行文件或当前目录）
+        // Get avatar file path (relative to executable or current directory)
         QString appDir = QApplication::applicationDirPath();
         QString fileName = QString::number(index + 1) + ".jpg";
         
-        // 尝试从多个可能的路径查找头像文件
+        // Try to find avatar file from multiple possible paths
         QStringList searchPaths = {
             QDir::currentPath() + "/friends/avatar/" + fileName,
             QDir::currentPath() + "/../friends/avatar/" + fileName,
-            QDir::currentPath() + "/src/friends/avatar/" + fileName,  // 源码目录
+            QDir::currentPath() + "/src/friends/avatar/" + fileName,  // Source code directory
             QDir::currentPath() + "/../src/friends/avatar/" + fileName,
             QDir::currentPath() + "/../../src/friends/avatar/" + fileName,
             appDir + "/friends/avatar/" + fileName,
             appDir + "/../friends/avatar/" + fileName,
             appDir + "/../../friends/avatar/" + fileName,
-            appDir + "/../../src/friends/avatar/" + fileName,  // 构建目录上一层
-            appDir + "/../../../src/friends/avatar/" + fileName, // 回到项目根
+            appDir + "/../../src/friends/avatar/" + fileName,  // One level above build directory
+            appDir + "/../../../src/friends/avatar/" + fileName, // Back to project root
             "friends/avatar/" + fileName,
             "../friends/avatar/" + fileName,
-            "src/friends/avatar/" + fileName  // 相对路径
+            "src/friends/avatar/" + fileName  // Relative path
         };
         
         for (const QString &path : searchPaths) {
             QString normalizedPath = QDir::cleanPath(path);
             if (QFile::exists(normalizedPath)) {
-                qDebug() << "找到头像文件:" << normalizedPath << "for user" << username;
+                qDebug() << "Found avatar file:" << normalizedPath << "for user" << username;
                 return QDir::cleanPath(normalizedPath);
             }
         }
         
-        qDebug() << "未找到头像文件 for user" << username << "fileName:" << fileName;
-        qDebug() << "搜索路径:" << searchPaths;
+        qDebug() << "Avatar file not found for user" << username << "fileName:" << fileName;
+        qDebug() << "Search paths:" << searchPaths;
     }
     
-    return "";  // 返回空字符串表示使用纯色头像
+    return "";  // Return empty string to use solid color avatar
 }
 
-// 完全照抄Profile页的roundedFromIcon逻辑，但适配图片路径
+// Copy the roundedFromIcon logic from Profile page, but adapt for image path
 namespace {
 QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius) {
     QPixmap base(size);
@@ -76,14 +76,14 @@ QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius)
 
     QPixmap source;
     if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
-        // 使用 QImageReader 确保正确加载 JPG/PNG 等格式
+        // Use QImageReader to ensure correct loading of JPG/PNG formats
         QImageReader reader(imagePath);
         QImage image = reader.read();
         if (!image.isNull()) {
             source = QPixmap::fromImage(image);
         } else {
-            // 如果 QImageReader 失败，尝试直接加载
-            source = QPixmap(imagePath);
+            // If QImageReader fails, try direct loading
+        source = QPixmap(imagePath);
         }
     }
 
@@ -92,17 +92,17 @@ QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius)
         QPainter painter(&base);
         painter.setRenderHint(QPainter::Antialiasing);
         QPainterPath path;
-        // 对于圆形头像，使用椭圆路径
+        // For circular avatar, use ellipse path
         if (radius == size.width() / 2 && size.width() == size.height()) {
             path.addEllipse(QRectF(0, 0, size.width(), size.height()));
         } else {
-            path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
+        path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
         }
         painter.setClipPath(path);
         painter.drawPixmap(0, 0, pix);
         painter.end();
     } else {
-        // 使用色环配色方案生成渐变背景
+        // Use color ring scheme to generate gradient background
         QPainter painter(&base);
         painter.setRenderHint(QPainter::Antialiasing);
         QPainterPath path;
@@ -144,12 +144,12 @@ FriendItem::FriendItem(const QString &avatarPath,
     main->setContentsMargins(0, 0, 0, 0);
     main->setSpacing(0);
 
-    // 顶部：头像 + 用户名 + 时间
+    // Top: avatar + username + time
     QHBoxLayout *top = new QHBoxLayout;
     top->setContentsMargins(12, 12, 12, 8);
     top->setSpacing(10);
 
-    // 圆形头像 - 使用mask确保真正圆形
+    // Circular avatar - use mask to ensure truly circular
     avatar = new QLabel(this);
     avatar->setObjectName("friendAvatar");
     avatar->setFixedSize(40, 40);
@@ -160,10 +160,10 @@ FriendItem::FriendItem(const QString &avatarPath,
         finalAvatarPath = getAvatarPathForUser(username);
     }
     
-    // 使用Profile页相同的逻辑，确保圆形（radius = size/2）
+    // Use same logic as Profile page to ensure circular (radius = size/2)
     QPixmap avatarPix = roundedFromPath(finalAvatarPath, QSize(40, 40), 20);
     
-    // 创建圆形mask确保头像真正是圆形
+    // Create circular mask to ensure avatar is truly circular
     QBitmap mask(40, 40);
     mask.fill(Qt::color0);
     QPainter maskPainter(&mask);
@@ -174,7 +174,7 @@ FriendItem::FriendItem(const QString &avatarPath,
     avatarPix.setMask(mask);
     
     avatar->setPixmap(avatarPix);
-    // 确保 QLabel 是方形的，mask 会使其显示为圆形
+    // Ensure QLabel is square, mask will make it display as circular
     avatar->setScaledContents(false);
     avatar->setCursor(Qt::PointingHandCursor);
     avatar->installEventFilter(this);
@@ -203,20 +203,20 @@ FriendItem::FriendItem(const QString &avatarPath,
     top->addWidget(timeLbl);
     main->addLayout(top);
 
-    // 视频缩略图（Instagram风格，响应式，保持16:9比例）
+    // Video thumbnail (Instagram style, responsive, maintain 16:9 ratio)
     thumbLbl = new QLabel;
     thumbLbl->setObjectName("friendVideoThumb");
-    thumbLbl->setScaledContents(false); // 不使用自动缩放，手动控制比例
+    thumbLbl->setScaledContents(false); // Don't use auto-scaling, manually control ratio
     thumbLbl->setAlignment(Qt::AlignCenter);
     thumbLbl->setStyleSheet("background: #0D0D0D;");
     thumbLbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     
-    // 不设置固定高度，让它在第一次显示时根据实际宽度计算
-    // 初始大小会在showEvent和resizeEvent中设置
+    // Don't set fixed height, let it calculate based on actual width on first display
+    // Initial size will be set in showEvent and resizeEvent
     if (!videoThumb.isEmpty() && QFile::exists(videoThumb)) {
         QPixmap pixmap(videoThumb);
         if (!pixmap.isNull()) {
-            // 缓存原始pixmap
+            // Cache original pixmap
             originalThumbPixmap_ = pixmap;
         } else {
             thumbLbl->setText(QString::fromUtf8("📹"));
@@ -229,12 +229,12 @@ FriendItem::FriendItem(const QString &avatarPath,
     thumbLbl->installEventFilter(this);
     main->addWidget(thumbLbl);
 
-    // 操作按钮区域（Instagram风格：三个按钮平均分配，左右对齐视频）
+    // Action button area (Instagram style: buttons evenly distributed, aligned with video left and right)
     QHBoxLayout *actionLayout = new QHBoxLayout;
     actionLayout->setContentsMargins(12, 8, 12, 8);
     actionLayout->setSpacing(0);
 
-    // Instagram风格的按钮样式，使用色环配色，放大字体
+    // Instagram style button, use color ring scheme, enlarge font
     QString buttonStyle = 
         "QPushButton {"
         "  background: transparent;"
@@ -255,33 +255,33 @@ FriendItem::FriendItem(const QString &avatarPath,
 
     likeBtn = new QPushButton(this);
     likeBtn->setIcon(QIcon(":/icons/icons/like.svg"));
-    likeBtn->setIconSize(QSize(32, 32)); // 再放大一些
+    likeBtn->setIconSize(QSize(32, 32)); // Make it a bit larger
     likeBtn->setText(" 0");
     likeBtn->setStyleSheet(buttonStyle);
     likeBtn->setCursor(Qt::PointingHandCursor);
 
     commentBtn = new QPushButton(this);
     commentBtn->setIcon(QIcon(":/icons/icons/comment.svg"));
-    commentBtn->setIconSize(QSize(32, 32)); // 再放大一些
+    commentBtn->setIconSize(QSize(32, 32)); // Make it a bit larger
     commentBtn->setText(" 0");
     commentBtn->setStyleSheet(buttonStyle);
     commentBtn->setCursor(Qt::PointingHandCursor);
 
     shareBtn = new QPushButton(this);
     shareBtn->setIcon(QIcon(":/icons/icons/share.svg"));
-    shareBtn->setIconSize(QSize(32, 32)); // 再放大一些
+    shareBtn->setIconSize(QSize(32, 32)); // Make it a bit larger
     shareBtn->setText(" 0");
     shareBtn->setStyleSheet(buttonStyle);
     shareBtn->setCursor(Qt::PointingHandCursor);
 
     repostBtn = new QPushButton(this);
     repostBtn->setIcon(QIcon(":/icons/icons/repost.svg"));
-    repostBtn->setIconSize(QSize(32, 32)); // 再放大一些
+    repostBtn->setIconSize(QSize(32, 32)); // Make it a bit larger
     repostBtn->setText(" 0");
     repostBtn->setStyleSheet(buttonStyle);
     repostBtn->setCursor(Qt::PointingHandCursor);
 
-    // 四个按钮平均分配宽度
+    // Four buttons evenly distribute width
     actionLayout->addWidget(likeBtn, 1);
     actionLayout->addWidget(commentBtn, 1);
     actionLayout->addWidget(shareBtn, 1);
@@ -294,7 +294,7 @@ FriendItem::FriendItem(const QString &avatarPath,
 
     main->addLayout(actionLayout);
 
-    // 标签和内容
+    // Tag and content
     tagLbl = new QLabel;
     tagLbl->setObjectName("friendTag");
     tagLbl->setStyleSheet(
@@ -317,17 +317,17 @@ FriendItem::FriendItem(const QString &avatarPath,
     );
     main->addWidget(contentLbl);
 
-    // 评论区（Instagram风格）
+    // Comment area (Instagram style)
     commentArea = new QWidget(this);
     commentArea->setObjectName("friendComments");
     commentArea->setStyleSheet("background: transparent; padding: 0px 12px 12px 12px;");
     QVBoxLayout *commentLayout = new QVBoxLayout(commentArea);
     commentLayout->setContentsMargins(0, 0, 0, 0);
     commentLayout->setSpacing(8);
-    commentArea->hide(); // 初始隐藏，有评论时显示
+    commentArea->hide(); // Initially hidden, show when there are comments
     main->addWidget(commentArea);
 
-    // 评论输入框
+    // Comment input box
     QHBoxLayout *inputLayout = new QHBoxLayout;
     inputLayout->setContentsMargins(12, 0, 12, 12);
     inputLayout->setSpacing(8);
@@ -342,7 +342,7 @@ FriendItem::FriendItem(const QString &avatarPath,
         "  font-size: 14px;"
         "}"
     );
-    commentInput->hide(); // 初始隐藏
+    commentInput->hide(); // Initially hidden
 
     QPushButton *postBtn = new QPushButton("Post", this);
     postBtn->setStyleSheet(
@@ -373,7 +373,7 @@ FriendItem::FriendItem(const QString &avatarPath,
         "}"
     );
     postBtn->setCursor(Qt::PointingHandCursor);
-    postBtn->hide(); // 初始隐藏
+    postBtn->hide(); // initial hide
 
     inputLayout->addWidget(commentInput, 1);
     inputLayout->addWidget(postBtn);
@@ -411,10 +411,10 @@ FriendItem::FriendItem(const QString &avatarPath,
     applyLanguage(langMgr.currentLanguage());
     connect(&langMgr, &LanguageManager::languageChanged, this, &FriendItem::applyLanguage);
     
-    // 如果widget已经有父widget（已添加到布局），立即设置初始缩略图尺寸
-    // 这样可以避免第一个item显示过大
+    // If widget already has parent widget (added to layout), immediately set initial thumbnail size
+    // This avoids the first item displaying too large
     if (parent && thumbLbl) {
-        // 使用多个延迟触发，确保布局已经完成
+        // Use multiple delayed triggers to ensure layout is complete
         QTimer::singleShot(50, this, [this]() {
             if (thumbLbl && width() > 0) {
                 updateThumbnailSize();
@@ -439,7 +439,7 @@ void FriendItem::onLike()
     liked = !liked;
     likeCount += liked ? 1 : -1;
     updateCountDisplay();
-    // 语音播报
+    // Voice narration
     NarrationManager::instance().narrate(
         liked ? QString::fromUtf8("已点赞") : QString::fromUtf8("取消点赞"),
         liked ? "Liked" : "Unliked"
@@ -451,7 +451,7 @@ void FriendItem::onShare()
     shared = !shared;
     shareCount += shared ? 1 : -1;
     updateCountDisplay();
-    // 语音播报
+    // Voice narration
     NarrationManager::instance().narrate(
         shared ? QString::fromUtf8("已分享") : QString::fromUtf8("取消分享"),
         shared ? "Shared" : "Unshared"
@@ -463,7 +463,7 @@ void FriendItem::onRepost()
     reposted = !reposted;
     repostCount += reposted ? 1 : -1;
     updateCountDisplay();
-    // 语音播报
+    // Voice narration
     NarrationManager::instance().narrate(
         reposted ? QString::fromUtf8("已转发") : QString::fromUtf8("取消转发"),
         reposted ? "Reposted" : "Unreposted"
@@ -472,29 +472,29 @@ void FriendItem::onRepost()
 
 void FriendItem::onComment()
 {
-    // 点击comment按钮时，只显示输入框，不增加计数
-    // 计数只在真正提交评论时增加（在addComment中）
+    // When clicking comment button, only show input box, don't increase count
+    // Count only increases when comment is actually submitted (in addComment)
     emit commentRequested(this);
 }
 
 void FriendItem::addComment(const QString &text, const QString &commenter)
 {
-    // 只在真正添加评论时增加计数（修复重复计数问题）
+    // Only increase count when comment is actually added (fix duplicate count issue)
     if (!text.trimmed().isEmpty()) {
         commentCount++;
         updateCountDisplay();
 
-        // 显示评论区
+        // Show comment area
         commentArea->show();
 
-        // 创建评论项（头像 + 昵称 + 评论内容）
+        // Create comment item (avatar + nickname + comment content)
         QWidget *commentItem = new QWidget(commentArea);
         commentItem->setStyleSheet("background: transparent;");
         QHBoxLayout *itemLayout = new QHBoxLayout(commentItem);
         itemLayout->setContentsMargins(0, 0, 0, 0);
         itemLayout->setSpacing(10);
 
-        // 评论者头像（小圆形头像）
+        // Commenter avatar (small circular avatar)
         QLabel *commentAvatar = new QLabel(commentItem);
         commentAvatar->setFixedSize(32, 32);
         commentAvatar->setScaledContents(false);
@@ -503,7 +503,7 @@ void FriendItem::addComment(const QString &text, const QString &commenter)
         QString commenterAvatarPath = getAvatarPathForUser(commenterName);
         QPixmap commentAvatarPix = roundedFromPath(commenterAvatarPath, QSize(32, 32), 16);
         
-        // 创建圆形mask确保头像真正是圆形
+        // Create circular mask to ensure avatar is truly circular
         QBitmap mask(32, 32);
         mask.fill(Qt::color0);
         QPainter maskPainter(&mask);
@@ -520,7 +520,7 @@ void FriendItem::addComment(const QString &text, const QString &commenter)
             "background-color: transparent;"
         );
 
-        // 评论内容
+        // Comment content
         QLabel *commentText = new QLabel(commentItem);
         commentText->setWordWrap(true);
         commentText->setProperty("commenterName", commenterName);
@@ -546,44 +546,44 @@ void FriendItem::updateCountDisplay()
     const QString activeColor = dayMode_ ? "#d93f78" : "#FF4F70";
     const QString activeHoverBg = dayMode_ ? "rgba(217,63,120,0.12)" : "rgba(255,79,112,0.15)";
     
-    QString baseStyle =
+    QString baseStyle = 
         QString("QPushButton {"
-                "  background: transparent;"
+        "  background: transparent;"
                 "  color: %1;"
-                "  border: none;"
+        "  border: none;"
                 "  padding: 10px 14px;"
                 "  font-size: 16px;"
-                "  font-weight: 600;"
-                "  text-align: left;"
-                "}"
-                "QPushButton:hover {"
+        "  font-weight: 600;"
+        "  text-align: left;"
+        "}"
+        "QPushButton:hover {"
                 "  background: %2;"
                 "  border-radius: 6px;"
                 "  color: %3;"
                 "}")
             .arg(baseTextColor, hoverBg, hoverTextColor);
-
-    QString activeStyle =
+    
+    QString activeStyle = 
         QString("QPushButton {"
-                "  background: transparent;"
+        "  background: transparent;"
                 "  color: %1;"
-                "  border: none;"
+        "  border: none;"
                 "  padding: 10px 14px;"
                 "  font-size: 16px;"
-                "  font-weight: 600;"
-                "  text-align: left;"
-                "}"
-                "QPushButton:hover {"
+        "  font-weight: 600;"
+        "  text-align: left;"
+        "}"
+        "QPushButton:hover {"
                 "  background: %2;"
                 "  border-radius: 6px;"
                 "  color: %1;"
                 "}")
             .arg(activeColor, activeHoverBg);
     
-    // 更新按钮样式和图标（夜间/高对比使用 *1.svg，日间使用默认）
+    // Update button style and icon (night/high contrast use *1.svg, day mode uses default)
     const bool useAltIcons = highContrast_ || !dayMode_;
     if (likeBtn) {
-        likeBtn->setStyleSheet(liked ? activeStyle : baseStyle);
+    likeBtn->setStyleSheet(liked ? activeStyle : baseStyle);
         likeBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/like1.svg")
                                            : QStringLiteral(":/icons/icons/like.svg")));
     }
@@ -593,12 +593,12 @@ void FriendItem::updateCountDisplay()
                                               : QStringLiteral(":/icons/icons/comment.svg")));
     }
     if (shareBtn) {
-        shareBtn->setStyleSheet(shared ? activeStyle : baseStyle);
+    shareBtn->setStyleSheet(shared ? activeStyle : baseStyle);
         shareBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/share1.svg")
                                             : QStringLiteral(":/icons/icons/share.svg")));
     }
     if (repostBtn) {
-        repostBtn->setStyleSheet(reposted ? activeStyle : baseStyle);
+    repostBtn->setStyleSheet(reposted ? activeStyle : baseStyle);
         repostBtn->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/repost1.svg")
                                              : QStringLiteral(":/icons/icons/repost.svg")));
     }
@@ -694,7 +694,7 @@ void FriendItem::applyThemeStyles()
               highContrast_ ? QStringLiteral("16") : QStringLiteral("14")));
     }
 
-    // 高对比模式下，正文也使用黄色以获得最大对比度
+    // In high contrast mode, body text also uses yellow for maximum contrast
     const QString contentColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#2d3a4f" : "#e8f0ff");
     if (contentLbl) {
         contentLbl->setStyleSheet(QStringLiteral(
@@ -779,7 +779,6 @@ void FriendItem::restyleCommentLabel(QLabel *label)
     const QString commenterName = label->property("commenterName").toString();
     const QString commentBody = label->property("commentBody").toString();
     const QString nameColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#3353b3" : "#6CADFF");
-    // 在高对比模式下，正文也使用黄色以获得最大对比度
     const QString bodyColor = highContrast_ ? "#f4c430" : (dayMode_ ? "#2d3a4f" : "#e8f0ff");
     const QString html = QStringLiteral(
         "<span style='font-weight:600; color:%1;'>%2</span> "
@@ -813,7 +812,7 @@ void FriendItem::setHighContrastMode(bool enabled)
         return;
     }
     highContrast_ = enabled;
-    // 高对比模式下不再使用日间模式的浅色背景
+    // High contrast mode no longer uses day mode's light background
     if (highContrast_) {
         dayMode_ = false;
     }
@@ -823,14 +822,14 @@ void FriendItem::setHighContrastMode(bool enabled)
 void FriendItem::setThumbnail(const QPixmap &pixmap)
 {
     if (!pixmap.isNull()) {
-        // 保存原始pixmap，用于后续缩放
+        // Save original pixmap for subsequent scaling
         originalThumbPixmap_ = pixmap;
         thumbLbl->setStyleSheet("background: #0D0D0D;");
         thumbLbl->setText("");
-        // 重置缓存尺寸，强制重新缩放
+        // Reset cached size, force re-scaling
         lastThumbWidth_ = -1;
         lastThumbHeight_ = -1;
-        // 直接调用resizeEvent逻辑来设置初始尺寸
+        // Directly call resizeEvent logic to set initial size
         if (thumbLbl) {
             updateThumbnailSize();
         }
@@ -879,27 +878,27 @@ void FriendItem::updateThumbnailSize()
         return;
     }
     
-    // 根据窗口宽度动态调整缩略图大小，严格保持16:9比例
+    // Dynamically adjust thumbnail size based on window width, strictly maintain 16:9 ratio
     const int widgetWidth = width();
     
-    // 如果widget宽度为0或无效，跳过更新（可能还在布局中）
+    // If widget width is 0 or invalid, skip update (may still be in layout)
     if (widgetWidth <= 0) {
         return;
     }
     
-    const int padding = 0; // 左右padding已经在layout中处理
+    const int padding = 0; // Left and right padding already handled in layout
     const int availableWidth = widgetWidth - padding;
     
-    // 如果可用宽度无效，跳过更新
+    // If available width is invalid, skip update
     if (availableWidth <= 0) {
         return;
     }
     
-    // 计算高度，严格保持16:9宽高比（不限制高度范围）
+    // Calculate height, strictly maintain 16:9 aspect ratio (no height limit)
     const double aspectRatio = 16.0 / 9.0;
     int targetHeight = static_cast<int>(availableWidth / aspectRatio);
     
-    // 性能优化：如果尺寸没有变化，跳过缩放
+    // Performance optimization: if size hasn't changed, skip scaling
     if (lastThumbWidth_ == availableWidth && lastThumbHeight_ == targetHeight) {
         return;
     }
@@ -907,17 +906,17 @@ void FriendItem::updateThumbnailSize()
     lastThumbWidth_ = availableWidth;
     lastThumbHeight_ = targetHeight;
     
-    // 更新缩略图大小 - 同时设置宽度和高度，确保比例正确
+    // Update thumbnail size - set both width and height to ensure correct ratio
     thumbLbl->setFixedSize(availableWidth, targetHeight);
     
-    // 优先使用缓存的原始pixmap
+        // Prefer using cached original pixmap
     if (!originalThumbPixmap_.isNull()) {
-        // 使用 KeepAspectRatio 保持比例，并居中裁剪
+        // Use KeepAspectRatio to maintain ratio and center crop
         QPixmap scaledPixmap = originalThumbPixmap_.scaled(availableWidth, targetHeight, 
                                                           Qt::KeepAspectRatioByExpanding, 
                                                           Qt::SmoothTransformation);
         
-        // 如果缩放后的图片比目标尺寸大，需要居中裁剪
+        // If scaled image is larger than target size, need to center crop
         if (scaledPixmap.width() > availableWidth || scaledPixmap.height() > targetHeight) {
             int x = (scaledPixmap.width() - availableWidth) / 2;
             int y = (scaledPixmap.height() - targetHeight) / 2;
@@ -926,17 +925,17 @@ void FriendItem::updateThumbnailSize()
         
         thumbLbl->setPixmap(scaledPixmap);
     } else if (!thumbPath.isEmpty() && QFile::exists(thumbPath)) {
-        // 如果没有缓存的pixmap，从文件加载
+        // If no cached pixmap, load from file
         QPixmap pixmap(thumbPath);
         if (!pixmap.isNull()) {
-            originalThumbPixmap_ = pixmap;  // 缓存原始图片
+            originalThumbPixmap_ = pixmap;  // Cache original image
             
-            // 使用 KeepAspectRatio 保持比例，并居中裁剪
+            // Use KeepAspectRatio to maintain ratio and center crop
             QPixmap scaledPixmap = pixmap.scaled(availableWidth, targetHeight, 
                                                  Qt::KeepAspectRatioByExpanding, 
                                                  Qt::SmoothTransformation);
             
-            // 如果缩放后的图片比目标尺寸大，需要居中裁剪
+            // If scaled image is larger than target size, need to center crop
             if (scaledPixmap.width() > availableWidth || scaledPixmap.height() > targetHeight) {
                 int x = (scaledPixmap.width() - availableWidth) / 2;
                 int y = (scaledPixmap.height() - targetHeight) / 2;
@@ -951,13 +950,13 @@ void FriendItem::updateThumbnailSize()
 void FriendItem::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    // 使用防抖机制：延迟更新，避免频繁缩放
-    // 增加延迟时间，避免在布局调整时频繁触发
+    // Use debounce mechanism: delay update to avoid frequent scaling
+    // Increase delay time to avoid frequent triggers during layout adjustment
     static QTimer *debounceTimer = nullptr;
     if (!debounceTimer) {
         debounceTimer = new QTimer(this);
         debounceTimer->setSingleShot(true);
-        debounceTimer->setInterval(150);  // 150ms防抖
+        debounceTimer->setInterval(150);  // 150ms debounce
         connect(debounceTimer, &QTimer::timeout, this, &FriendItem::updateThumbnailSize);
     }
     debounceTimer->stop();
@@ -967,6 +966,6 @@ void FriendItem::resizeEvent(QResizeEvent *event)
 void FriendItem::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
-    // 当控件显示时，更新缩略图尺寸
+    // When widget is displayed, update thumbnail size
     updateThumbnailSize();
 }

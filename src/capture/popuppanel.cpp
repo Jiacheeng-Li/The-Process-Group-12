@@ -31,7 +31,7 @@ PopupPanel::PopupPanel(QWidget *parent)
     );
     layout->addWidget(title);
 
-    resize(400, 500);  // 增大面板尺寸，确保内容能够完整显示
+    resize(400, 500);  // Increase panel size to ensure content is fully displayed
     box->setGeometry(0,0, width(), height());
 }
 
@@ -48,12 +48,12 @@ void PopupPanel::setContent(QWidget *content)
     contentWidget = content;
     layout->addWidget(contentWidget);
     
-    // 根据内容自动调整大小，但设置最小和最大尺寸
+    // Auto-adjust size based on content, but set min and max sizes
     contentWidget->adjustSize();
     int contentHeight = contentWidget->sizeHint().height();
     int minHeight = 300;
     int maxHeight = 600;
-    int newHeight = qBound(minHeight, contentHeight + 100, maxHeight);  // 100是标题和边距的空间
+    int newHeight = qBound(minHeight, contentHeight + 100, maxHeight);  // 100 is space for title and margins
     resize(width(), newHeight);
     box->setGeometry(0, 0, width(), height());
 }

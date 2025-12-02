@@ -15,7 +15,7 @@ class FriendsPage : public QWidget
     Q_OBJECT
 public:
     explicit FriendsPage(QWidget *parent = nullptr);
-    // 使用视频列表初始化
+    // Initialize with video list
     explicit FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *parent = nullptr);
     void addNewPost(const QString &videoThumb);
     void setVideos(const std::vector<TheButtonInfo> &videos);

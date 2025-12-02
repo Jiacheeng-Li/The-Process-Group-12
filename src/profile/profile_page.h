@@ -85,10 +85,10 @@ private:
     QString usernameText_;
     QString displayNameText_;
     std::vector<std::pair<QLabel *, QString>> statLabelWidgets_;
-    qreal gradientAngle_; // 渐变角度，随滚动变化
-    QScrollArea *scrollArea_; // 保存滚动区域指针，用于连接信号
-    AvatarRingWidget *avatarWidget_ = nullptr; // 保存头像widget指针，用于更新头像
-    QString currentUsername_; // 当前显示的用户名
+    qreal gradientAngle_; // Gradient angle, changes with scrolling
+    QScrollArea *scrollArea_; // Save scroll area pointer for connecting signals
+    AvatarRingWidget *avatarWidget_ = nullptr; // Save avatar widget pointer for updating avatar
+    QString currentUsername_; // Currently displayed username
 };
 
 #endif // PROFILE_PAGE_H

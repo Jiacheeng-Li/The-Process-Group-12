@@ -421,7 +421,7 @@ void ChatPage::switchContact(int index) {
     contactLabel_->setText(contacts_[index].name);
     statusLabel_->setText(contacts_[index].status);
     rebuildConversation();
-    // 语音播报切换联系人
+    // Voice narration for contact switch
     const QString &contactName = contacts_[index].name;
     NarrationManager::instance().narrate(
         QString::fromUtf8("切换到 %1").arg(contactName),
@@ -443,7 +443,7 @@ void ChatPage::handleSend() {
     appendMessageRow(text, true);
     messageInput_->clear();
     
-    // 语音播报
+    // Voice narration
     NarrationManager::instance().narrate(
         QString::fromUtf8("消息已发送"),
         "Message sent"
@@ -477,7 +477,7 @@ void ChatPage::setLanguage(AppLanguage language) {
     language_ = language;
     rebuildStrings();
     initializeContacts();
-    // 语音播报语言切换
+    // Voice narration语言切换
     NarrationManager::instance().setLanguage(language);
 }
 

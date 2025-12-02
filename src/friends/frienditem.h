@@ -25,11 +25,11 @@ public:
                         const QString &username,
                         const QString &videoThumb,
                         const QDateTime &time = QDateTime::currentDateTime(),
-                        int videoIndex = -1,  // 视频索引，-1表示无视频
+                        int videoIndex = -1,  // Video index, -1 means no video
                         const FriendPostCopy &copy = FriendPostCopy(),
                         QWidget *parent = nullptr);
 
-    // 发布页注入一条“我自己”
+    // Inject a "myself" item from publish page
     static FriendItem* fromPublish(const QString &videoThumb,
                                    const FriendPostCopy &copy = FriendPostCopy());
 
@@ -39,12 +39,12 @@ public:
 signals:
     void commentRequested(FriendItem *self);
     void avatarClicked(const QString &username);
-    void thumbnailClicked(int videoIndex);  // 缩略图被点击时发出视频索引
+    void thumbnailClicked(int videoIndex);  // Emit video index when thumbnail is clicked
 
 public slots:
-    void addComment(const QString &text, const QString &commenter = "You");  // 添加评论，支持指定评论者
-    void setThumbnail(const QPixmap &pixmap);  // 设置缩略图
-    void updateThumbnailSize();  // 公开方法，允许外部触发更新
+    void addComment(const QString &text, const QString &commenter = "You");  // Add comment, supports specifying commenter
+    void setThumbnail(const QPixmap &pixmap);  // Set thumbnail
+    void updateThumbnailSize();  // Public method, allows external trigger update
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -71,8 +71,8 @@ private:
     QPushButton *shareBtn;
     QPushButton *repostBtn;
 
-    QWidget *commentArea;  // 评论区容器
-    QLineEdit *commentInput;  // 评论输入框
+    QWidget *commentArea;  // Comment area container
+    QLineEdit *commentInput;  // Comment input box
 
     int likeCount = 0;
     int commentCount = 0;
@@ -83,14 +83,14 @@ private:
     bool reposted = false;
 
     QString thumbPath;
-    QString username_;  // 存储用户名
-    int videoIndex_;  // 存储视频索引
+    QString username_;  // Store username
+    int videoIndex_;  // Store video index
     FriendPostCopy copy_;
     
-    // 性能优化：缓存上次的尺寸，避免重复缩放
+    // Performance optimization: cache last size to avoid repeated scaling
     int lastThumbWidth_ = -1;
     int lastThumbHeight_ = -1;
-    QPixmap originalThumbPixmap_;  // 缓存原始缩略图
+    QPixmap originalThumbPixmap_;  // Cache original thumbnail
 
     bool dayMode_ = false;
     bool highContrast_ = false;

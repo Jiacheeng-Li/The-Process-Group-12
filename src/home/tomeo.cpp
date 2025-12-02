@@ -65,6 +65,7 @@
 #include <memory>
 #include "app_settings.h"
 #include "shared/language_manager.h"
+#include "../capture/popuppanel.h"
 #include "shared/narration_manager.h"
 #include <QTextToSpeech>
 #include <QShortcut>
@@ -104,7 +105,7 @@ QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
 }
 } // namespace
 
-// 彩色头像环（仿 Instagram），使用项目配色做渐变（用于HomePage）
+// Colored avatar ring (Instagram-style), use project color scheme for gradient (for HomePage)
 class HomePageAvatarRingWidget : public QWidget {
 public:
     explicit HomePageAvatarRingWidget(const QIcon *icon, QWidget *parent = nullptr)
@@ -125,26 +126,26 @@ protected:
 
         QRectF outerRect = rect().adjusted(1, 1, -1, -1);
 
-        // 外圈：多色渐变环
+        // Outer ring: multi-color gradient ring
         QConicalGradient grad(outerRect.center(), 0);
-        // 多段渐变，让颜色衔接更顺滑，尽量减少纯黑
-        grad.setColorAt(0.00, QColor("#FF4F70"));   // 粉
-        grad.setColorAt(0.18, QColor("#FF8AA0"));   // 粉 → 亮一点
-        grad.setColorAt(0.32, QColor("#6CADFF"));   // 淡蓝
-        grad.setColorAt(0.46, QColor("#3A7DFF"));   // 深蓝
-        grad.setColorAt(0.60, QColor("#BFBFBF"));   // 银灰
-        grad.setColorAt(0.74, QColor("#6CADFF"));   // 回到淡蓝
-        grad.setColorAt(0.88, QColor("#FF8AA0"));   // 再次粉色过渡
-        grad.setColorAt(1.00, QColor("#FF4F70"));   // 闭环粉
+        // Multi-segment gradient for smoother color transitions, minimize pure black
+        grad.setColorAt(0.00, QColor("#FF4F70"));   // Pink
+        grad.setColorAt(0.18, QColor("#FF8AA0"));   // Pink → brighter
+        grad.setColorAt(0.32, QColor("#6CADFF"));   // Light blue
+        grad.setColorAt(0.46, QColor("#3A7DFF"));   // Dark blue
+        grad.setColorAt(0.60, QColor("#BFBFBF"));   // Silver gray
+        grad.setColorAt(0.74, QColor("#6CADFF"));   // Back to light blue
+        grad.setColorAt(0.88, QColor("#FF8AA0"));   // Pink transition again
+        grad.setColorAt(1.00, QColor("#FF4F70"));   // Close loop pink
 
         painter.setPen(Qt::NoPen);
         painter.setBrush(grad);
         painter.drawEllipse(outerRect);
 
-        // 内圈：深色背景 + 头像
+        // Inner ring: dark background + avatar
         const int ringWidth = 3;
         QRectF innerRect = outerRect.adjusted(ringWidth, ringWidth, -ringWidth, -ringWidth);
-        // 内圈背景改成深蓝，而不是纯黑
+        // Change inner ring background to dark blue instead of pure black
         painter.setBrush(QColor("#050b1e"));
         painter.drawEllipse(innerRect);
 
@@ -300,29 +301,29 @@ public slots:
         if (cues_.isEmpty()) {
             return;
         }
-        // 检查当前字幕是否还在有效范围内
+        // Check if current subtitle is still within valid range
         if (currentCueIndex_ >= 0 && currentCueIndex_ < cues_.size()) {
             const auto &cue = cues_.at(currentCueIndex_);
             if (position >= cue.startMs && position <= cue.endMs) {
-                return; // 仍在当前字幕时间范围内，不需要更新
+                return; // Still within current subtitle time range, no need to update
             }
         }
-        // 查找新的字幕
+        // Find new subtitle
         for (int i = 0; i < cues_.size(); ++i) {
             const auto &cue = cues_.at(i);
             if (position >= cue.startMs && position <= cue.endMs) {
                 if (currentCueIndex_ != i) {
-                    currentCueIndex_ = i;
+                currentCueIndex_ = i;
                     qDebug() << "SubtitleController: Showing subtitle at" << position << "ms:" << cue.text;
-                    emit subtitleChanged(cue.text);
+                emit subtitleChanged(cue.text);
                 }
                 return;
             }
         }
-        // 没有找到匹配的字幕，清除显示
+        // No matching subtitle found, clear display
         if (currentCueIndex_ >= 0) {
-            currentCueIndex_ = -1;
-            emit subtitleChanged(QString());
+        currentCueIndex_ = -1;
+        emit subtitleChanged(QString());
         }
     }
 
@@ -349,43 +350,43 @@ private:
         const QString baseName = info.completeBaseName();
         const QString dirPath = QDir::cleanPath(info.absolutePath());
         
-        // 构建多个可能的字幕文件路径（按优先级排序）
+        // Build multiple possible subtitle file paths (sorted by priority)
         QStringList searchPaths;
         
-        // 1. 视频文件同目录下，带语言后缀：{baseName}_{language}.srt
+        // 1. Same directory as video file, with language suffix: {baseName}_{language}.srt
         searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(dirPath, baseName, language_));
         
-        // 2. 视频文件同目录下，不带语言后缀：{baseName}.srt
+        // 2. Same directory as video file, without language suffix: {baseName}.srt
         searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(dirPath, baseName));
         
-        // 3. 在项目根目录下的videos文件夹中查找字幕（和src1、src2同级的videos目录）
-        // 这个videos目录会提交，所以SRT文件应该放在这里
+        // 3. Look for subtitles in videos folder under project root (videos directory at same level as src1, src2)
+        // This videos directory will be committed, so SRT files should be placed here
         QDir videoDir(dirPath);
-        // 尝试找到项目根目录（向上查找，直到找到包含 videos 的目录）
+        // Try to find project root directory (search upward until finding directory containing videos)
         QDir currentDir = videoDir;
         QString videosPath;
         
         for (int i = 0; i < 5 && currentDir.cdUp(); ++i) {
             QString rootPath = currentDir.absolutePath();
             
-            // 检查根目录下的 videos 目录（和src1、src2同级的videos文件夹）
+            // Check videos directory under root directory (videos folder at same level as src1, src2)
             QString testVideosPath = QDir::cleanPath(QString("%1/videos").arg(rootPath));
             if (QDir(testVideosPath).exists() && videosPath.isEmpty()) {
                 videosPath = testVideosPath;
-                break; // 找到就停止
+                break; // Stop when found
             }
-        }
-        
-        // 在根目录的videos文件夹中查找字幕文件
+            }
+            
+        // Look for subtitle files in videos folder under root directory
         if (!videosPath.isEmpty()) {
-            searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(videosPath, baseName, language_));
-            searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(videosPath, baseName));
-        }
+                searchPaths << QDir::cleanPath(QString("%1/%2_%3.srt").arg(videosPath, baseName, language_));
+                searchPaths << QDir::cleanPath(QString("%1/%2.srt").arg(videosPath, baseName));
+            }
         
-        // 4. 额外检查：如果视频文件路径中包含videos，也在同级的videos目录中查找
+        // 4. Additional check: if video file path contains videos, also search in videos directory at same level
         if (dirPath.contains("videos", Qt::CaseInsensitive)) {
-            // 如果视频就在videos目录中，已经在步骤1-2中查找过了
-            // 这里可以添加其他可能的videos目录路径
+            // If video is already in videos directory, already searched in steps 1-2
+            // Can add other possible videos directory paths here
         }
         
         QString foundPath;
@@ -441,12 +442,12 @@ QStringList discoverSubtitleLanguages(const std::vector<TheButtonInfo> &videos) 
         const QString dirPath = fileInfo.absolutePath();
         const QString baseName = fileInfo.completeBaseName();
         
-        // 在视频文件同目录下查找
+        // Search in same directory as video file
         QDir dir(dirPath);
         QFileInfoList entries = dir.entryInfoList(QStringList() << QString("%1_*.srt").arg(baseName),
-                                                  QDir::Files | QDir::NoSymLinks);
+                                                        QDir::Files | QDir::NoSymLinks);
         
-        // 也在根目录的videos文件夹中查找（和src1、src2同级的videos目录）
+        // Also search in videos folder under root directory (videos directory at same level as src1, src2)
         QDir currentDir = dir;
         for (int i = 0; i < 5 && currentDir.cdUp(); ++i) {
             QString rootPath = currentDir.absolutePath();
@@ -456,7 +457,7 @@ QStringList discoverSubtitleLanguages(const std::vector<TheButtonInfo> &videos) 
                 QFileInfoList videosEntries = videosDir.entryInfoList(QStringList() << QString("%1_*.srt").arg(baseName),
                                                                     QDir::Files | QDir::NoSymLinks);
                 entries.append(videosEntries);
-                break; // 找到就停止
+                break; // Stop when found
             }
         }
         
@@ -486,7 +487,7 @@ QLocale localeFor(AppLanguage language) {
                                             : QLocale(QLocale::Chinese, QLocale::China);
 }
 
-// 获取用户头像路径（与FriendItem中的函数相同）
+// Get user avatar path (same function as in FriendItem)
 static QString getAvatarPathForUser(const QString &username)
 {
     // Map the first five demo users to avatar files 1-5.jpg
@@ -553,30 +554,30 @@ public:
                            ? QStringLiteral("Accessibility & Internationalization")
                            : QString::fromUtf8("无障碍与多语言设置"));
         
-        // 应用父窗口的样式表，确保对话框使用正确的主题
+        // Apply parent window's stylesheet to ensure dialog uses correct theme
         if (parent) {
             setStyleSheet(parent->styleSheet());
         }
         
         auto *layout = new QVBoxLayout(this);
         narrationBox_ = new QCheckBox(language == AppLanguage::English
-                                          ? QStringLiteral("Voice narration for low-vision users")
-                                          : QString::fromUtf8("视障语音播报"));
+                                          ? QStringLiteral("Screen narration support")
+                                          : QString::fromUtf8("屏幕朗读支持"));
         narrationBox_->setChecked(prefs_.narrationEnabled);
 
         subtitlesBox_ = new QCheckBox(language == AppLanguage::English
-                                          ? QStringLiteral("On-screen subtitles for Deaf/HoH")
-                                          : QString::fromUtf8("听障字幕"));
+                                          ? QStringLiteral("On-screen subtitles")
+                                          : QString::fromUtf8("屏幕字幕"));
         subtitlesBox_->setChecked(prefs_.subtitlesEnabled);
 
         keyboardNavBox_ = new QCheckBox(language == AppLanguage::English
-                                            ? QStringLiteral("Keyboard navigation shortcuts")
-                                            : QString::fromUtf8("键盘导航支持"));
+                                            ? QStringLiteral("Keyboard navigation")
+                                            : QString::fromUtf8("键盘导航"));
         keyboardNavBox_->setChecked(prefs_.keyboardNavigationEnabled);
 
         colorBlindBox_ = new QCheckBox(language == AppLanguage::English
-                                           ? QStringLiteral("High-contrast palette for color-blind users")
-                                           : QString::fromUtf8("色盲/色弱高对比配色"));
+                                           ? QStringLiteral("High-contrast mode")
+                                           : QString::fromUtf8("高对比度模式"));
         colorBlindBox_->setChecked(prefs_.colorBlindPaletteEnabled);
 
         auto *comboForm = new QFormLayout();
@@ -601,7 +602,7 @@ public:
                               : QString::fromUtf8("字幕语言"),
                           subtitleCombo_);
 
-        // 视频显示参数调整
+        // Video display parameter adjustment
         auto *videoParamsGroup = new QGroupBox(language == AppLanguage::English
                                                   ? QStringLiteral("Video Display Parameters")
                                                   : QString::fromUtf8("视频显示参数"),
@@ -609,7 +610,7 @@ public:
         auto *videoParamsLayout = new QFormLayout(videoParamsGroup);
         
         brightnessSlider_ = new QSlider(Qt::Horizontal, this);
-        brightnessSlider_->setRange(0, 200);  // 0.0-2.0, 步进0.01
+        brightnessSlider_->setRange(0, 200);  // 0.0-2.0, step 0.01
         brightnessSlider_->setValue(static_cast<int>(prefs_.brightness * 100));
         brightnessLabel_ = new QLabel(QString::number(prefs_.brightness, 'f', 2), this);
         connect(brightnessSlider_, &QSlider::valueChanged, this, [this](int value) {
@@ -653,7 +654,7 @@ public:
                                       : QString::fromUtf8("饱和度"),
                                   saturationLayout);
         
-        // 只允许后端稳定支持的几个倍速档：0.5x / 1.0x / 1.5x / 2.0x
+        // Only allow playback speeds stably supported by backend: 0.5x / 1.0x / 1.5x / 2.0x
         static const double kRates[] = {0.5, 1.0, 1.5, 2.0};
 
         auto nearestRate = [](double value) {
@@ -670,11 +671,11 @@ public:
             return best;
         };
 
-        // 将当前偏好值对齐到最近的合法倍速
+        // Align current preference value to nearest valid playback speed
         prefs_.playbackRate = nearestRate(prefs_.playbackRate);
-
+        
         playbackRateSlider_ = new QSlider(Qt::Horizontal, this);
-        // 0.5–2.0 之间的整数百分比，但我们会在 valueChanged 中自动“吸附”到合法档位
+        // Integer percentage between 0.5–2.0, but we'll automatically "snap" to valid positions in valueChanged
         playbackRateSlider_->setRange(50, 200);
         playbackRateSlider_->setValue(static_cast<int>(prefs_.playbackRate * 100));
         playbackRateLabel_ = new QLabel(QString::number(prefs_.playbackRate, 'f', 2) + "x", this);
@@ -683,7 +684,7 @@ public:
             double snapped = nearestRate(raw);
             int snappedInt = static_cast<int>(snapped * 100 + 0.5);
 
-            // 如果用户拖到非精确位置，自动吸附到最近档位并更新滑条
+            // If user drags to non-exact position, automatically snap to nearest position and update slider
             if (snappedInt != value) {
                 playbackRateSlider_->blockSignals(true);
                 playbackRateSlider_->setValue(snappedInt);
@@ -693,7 +694,7 @@ public:
             playbackRateLabel_->setText(QString::number(snapped, 'f', 2) + "x");
             prefs_.playbackRate = snapped;
 
-            // 对话框打开时实时更新播放器倍速，让用户立刻感受到变化
+            // Update player playback speed in real-time when dialog is open, let user feel changes immediately
             if (player_) {
                 player_->setPlaybackRate(snapped);
             }
@@ -708,7 +709,7 @@ public:
                                       : QString::fromUtf8("播放倍速"),
                                   playbackRateLayout);
 
-        // 环境限制提示：当前后端不支持真实倍速，始终 1.0x
+        // Environment limitation notice: current backend doesn't support real playback speed, always 1.0x
         playbackRateWarning_ = new QLabel(this);
         playbackRateWarning_->setWordWrap(true);
         playbackRateWarning_->setStyleSheet("color: #ff4f70; font-size: 11px;");
@@ -734,16 +735,16 @@ public:
             prefs_.brightness = brightnessSlider_->value() / 100.0;
             prefs_.contrast = contrastSlider_->value() / 100.0;
             prefs_.saturation = saturationSlider_->value() / 100.0;
-            // playbackRate 在 valueChanged 中已经被 nearestRate 吸附过，这里直接使用 prefs_
+            // playbackRate has already been snapped by nearestRate in valueChanged, use prefs_ directly here
             accept();
         });
         connect(buttonBox, &QDialogButtonBox::rejected, this, &AccessibilitySettingsDialog::reject);
 
-        // 当界面语言切换时，更新提示语言
+        // When interface language changes, update warning language
         connect(languageCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &AccessibilitySettingsDialog::updatePlaybackWarningLabel);
 
-        // 根据当前倍速初始化提示
+        // Initialize warning based on current playback speed
         updatePlaybackWarningLabel();
     }
 
@@ -778,13 +779,13 @@ void AccessibilitySettingsDialog::updatePlaybackWarningLabel()
         return;
     }
 
-    // 如果当前倍速是 1.0x，就不显示提示
+    // If current playback speed is 1.0x, don't show warning
     if (qFuzzyCompare(prefs_.playbackRate, 1.0)) {
         playbackRateWarning_->hide();
         return;
     }
 
-    // 根据界面语言选择提示文本
+    // Select warning text based on interface language
     AppLanguage lang = uiLanguage_;
     if (languageCombo_) {
         const QVariant data = languageCombo_->currentData();
@@ -815,7 +816,7 @@ public:
     void setGradientAngle(qreal angle) {
         if (gradientAngle_ != angle) {
             gradientAngle_ = angle;
-            update(); // 触发重绘
+            update(); // Trigger redraw
         }
     }
     
@@ -869,34 +870,34 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
         
-        // 先绘制背景图片
+        // Draw background image first
         if (!scaledBackground.isNull()) {
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
             
-            // 计算绘制位置，只显示图片的中下部分
-            // 图片的顶部被裁剪，底部对齐到widget底部
+            // Calculate drawing position, only show middle-lower part of image
+            // Top of image is cropped, bottom aligned to widget bottom
             const QSize widgetSize = size();
             const QSize pixmapSize = scaledBackground.size();
             int x = (widgetSize.width() - pixmapSize.width()) / 2;
-            int y = widgetSize.height() - pixmapSize.height();  // 底部对齐
+            int y = widgetSize.height() - pixmapSize.height();  // Bottom aligned
             
-            // 如果图片高度小于widget高度，则居中显示
+            // If image height is less than widget height, center it
             if (pixmapSize.height() < widgetSize.height()) {
                 y = (widgetSize.height() - pixmapSize.height()) / 2;
             }
             
-            // 使用固定位置绘制，不随窗口滚动改变
+            // Draw at fixed position, doesn't change with window scrolling
             painter.drawPixmap(x, y, pixmapSize.width(), pixmapSize.height(), scaledBackground);
         }
         
-        // 绘制彩色边框（类似Profile页）
+        // Draw colored border (similar to Profile page)
         painter.setRenderHint(QPainter::Antialiasing);
         
-        // 外层矩形略微内缩，避免被裁剪
+        // Outer rectangle slightly inset to avoid clipping
         QRectF outerRect = rect().adjusted(3.0, 3.0, -3.0, -3.0);
         
-        // 使用和头像类似的多色渐变做一圈「色环边框」
-        // 渐变角度随滚动位置变化
+        // Use multi-color gradient similar to avatar to create a "color ring border"
+        // Gradient angle changes with scroll position
         QConicalGradient grad(outerRect.center(), gradientAngle_);
         grad.setColorAt(0.00, QColor("#FF4F70"));
         grad.setColorAt(0.18, QColor("#FF8AA0"));
@@ -934,11 +935,11 @@ private:
     QPixmap backgroundPixmap;
     QPixmap scaledBackground;
     QSize lastScaledSize;
-    qreal gradientAngle_; // 渐变角度，随滚动变化
+    qreal gradientAngle_; // Gradient angle, changes with scrolling
 };
 
 // read in videos and thumbnails from this directory
-// 如果同一个字母有多种格式（.wmv / .mp4 / .mov），只保留**一种**，避免在首页和朋友圈重复出现
+// If same letter has multiple formats (.wmv / .mp4 / .mov), only keep **one**, avoid duplicate appearance on homepage and friend feed
 std::vector<TheButtonInfo> getInfoIn(std::string loc) {
     std::vector<TheButtonInfo> out;
 
@@ -948,7 +949,7 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
         return out;
     }
 
-    // 收集所有候选视频文件，按「同名不同后缀」分组
+    // Collect all candidate video files, group by "same name different extension"
     struct Candidate {
         QFileInfo fi;
         int priority = 0;
@@ -964,24 +965,24 @@ std::vector<TheButtonInfo> getInfoIn(std::string loc) {
         }
 
         const QString lower = fi.fileName().toLower();
-        QString ext = fi.suffix().toLower();       // 不带点，例如 "mp4"
-        QString base = fi.completeBaseName();      // 例如 "a", "b", "h"
+        QString ext = fi.suffix().toLower();       // Without dot, e.g. "mp4"
+        QString base = fi.completeBaseName();      // e.g. "a", "b", "h"
 
         int pri = 0;
 #if defined(_WIN32)
-        // Windows 下优先选 .wmv，其次 .mp4，最后 .mov
+        // On Windows, prefer .wmv, then .mp4, finally .mov
         if (ext == "wmv") pri = 3;
         else if (ext == "mp4") pri = 2;
         else if (ext == "mov") pri = 1;
 #else
-        // 其他平台优先 mp4 / mov
+        // Other platforms prefer mp4 / mov
         if (ext == "mp4") pri = 3;
         else if (ext == "mov") pri = 2;
         else if (ext == "wmv") pri = 1;
 #endif
 
         if (pri == 0) {
-            continue; // 非支持的视频格式
+            continue; // Unsupported video format
         }
 
         auto itBest = bestByBaseName.find(base);
@@ -1081,7 +1082,7 @@ int main(int argc, char *argv[]) {
     // create the Qt Application
     QApplication app(argc, argv);
 
-    // 全局字体设置：使用更清晰的无衬线字体，稍微放大字号，类似 Instagram
+    // Global font settings: use clearer sans-serif font, slightly larger size, similar to Instagram
     {
         QFont baseFont;
 #if defined(Q_OS_WIN)
@@ -1091,7 +1092,7 @@ int main(int argc, char *argv[]) {
 #else
         baseFont = QFont(QStringLiteral("Roboto"));
 #endif
-        baseFont.setPointSize(11);              // 比默认稍大，更易读
+        baseFont.setPointSize(11);              // Slightly larger than default, more readable
         baseFont.setStyleStrategy(QFont::PreferAntialias);
         app.setFont(baseFont);
     }
@@ -1119,12 +1120,12 @@ int main(int argc, char *argv[]) {
     AccessibilityPreferences accessibilityPrefs;
     QStringList subtitleLanguages = discoverSubtitleLanguages(videos);
     
-    // 辅助函数：根据当前语言选择文本
+    // Helper function: select text based on current language
     auto pickText = [&accessibilityPrefs](const QString &zh, const QString &en) {
         return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
     };
-    // 语音播报功能将在window定义后初始化
-    // 使用全局NarrationManager管理语音播报
+    // Voice narration will be initialized after window definition
+    // Use global NarrationManager to manage voice narration
     auto narrate = [&](const QString &text) {
         NarrationManager::instance().narrate(text);
     };
@@ -1151,19 +1152,19 @@ int main(int argc, char *argv[]) {
     
     HomePageWidget *homePage = new HomePageWidget();
     QVBoxLayout *homeLayout = new QVBoxLayout();
-    homeLayout->setContentsMargins(48, 48, 48, 48);
-    homeLayout->setSpacing(24);
+    homeLayout->setContentsMargins(32, 32, 32, 32);
+    homeLayout->setSpacing(12);
     homePage->setLayout(homeLayout);
 
     auto *topBar = new QHBoxLayout();
     topBar->setContentsMargins(0, 0, 0, 0);
-    topBar->setSpacing(12);
+    topBar->setSpacing(8);
 
     auto *titleCol = new QVBoxLayout();
-    titleCol->setSpacing(4);
-    auto *heroTitle = new QLabel(QString::fromUtf8("Daydream Night"));
+    titleCol->setSpacing(2);
+    auto *heroTitle = new QLabel(QString::fromUtf8("Antipode: Day Dream Night"));
     heroTitle->setObjectName("heroTitle");
-    auto *heroSubtitle = new QLabel(QString::fromUtf8("双摄延迟 %1 min · 与朋友共享未修饰瞬间").arg(8));
+    auto *heroSubtitle = new QLabel(QString::fromUtf8("来自地球另一边的瞬间"));
     heroSubtitle->setObjectName("heroSubtitle");
     titleCol->addWidget(heroTitle);
     titleCol->addWidget(heroSubtitle);
@@ -1182,18 +1183,18 @@ int main(int argc, char *argv[]) {
     berealCard->setObjectName("berealCard");
     berealCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto *cardLayout = new QVBoxLayout(berealCard);
-    cardLayout->setContentsMargins(28, 28, 28, 24);
-    cardLayout->setSpacing(18);
+    cardLayout->setContentsMargins(20, 20, 20, 16);
+    cardLayout->setSpacing(10);
 
     auto *cardHeader = new QHBoxLayout();
-    cardHeader->setSpacing(16);
+    cardHeader->setSpacing(10);
 
-    // 使用彩色环头像（类似Profile页）
+    // Use colored ring avatar (similar to Profile page)
     const QIcon *avatarIcon = videos.empty() ? nullptr : videos.front().icon;
     auto *avatarRing = new HomePageAvatarRingWidget(avatarIcon, berealCard);
 
     auto *identityCol = new QVBoxLayout();
-    identityCol->setSpacing(2);
+    identityCol->setSpacing(1);
     auto *displayName = new QLabel("Lina Mendes", berealCard);
     displayName->setObjectName("displayName");
     auto *dropMeta = new QLabel(QString::fromUtf8("2 小时 late · Palermo, Buenos Aires"), berealCard);
@@ -1228,11 +1229,11 @@ int main(int argc, char *argv[]) {
     overlayLayer->setObjectName("captureOverlay");
     overlayLayer->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     auto *overlayLayout = new QVBoxLayout(overlayLayer);
-    overlayLayout->setContentsMargins(18, 18, 18, 18);
-    overlayLayout->setSpacing(12);
+    overlayLayout->setContentsMargins(12, 12, 12, 12);
+    overlayLayout->setSpacing(8);
 
     auto *overlayTop = new QHBoxLayout();
-    overlayTop->setSpacing(8);
+    overlayTop->setSpacing(6);
     auto *lateBadge = new QLabel(QString::fromUtf8("双摄延迟 2h"), overlayLayer);
     lateBadge->setObjectName("lateBadge");
     auto *networkBadge = new QLabel(QString::fromUtf8("4G · 68%"), overlayLayer);
@@ -1244,7 +1245,7 @@ int main(int argc, char *argv[]) {
     overlayLayout->addStretch();
 
     auto *overlayBottom = new QHBoxLayout();
-    overlayBottom->setSpacing(12);
+    overlayBottom->setSpacing(8);
     overlayBottom->addStretch();
     auto *videoStatusLabel = new QLabel(QString::fromUtf8("加载中..."), overlayLayer);
     videoStatusLabel->setObjectName("videoStatusLabel");
@@ -1264,14 +1265,14 @@ int main(int argc, char *argv[]) {
 
     cardLayout->addWidget(captureFrame);
 
-    // 创建独立的字幕显示模块（在视频下方）
+    // Create independent subtitle display module (below video)
     auto *subtitleFrame = new QFrame(berealCard);
     subtitleFrame->setObjectName("subtitleFrame");
     subtitleFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     subtitleFrame->setMinimumHeight(60);
     subtitleFrame->setMaximumHeight(80);
     auto *subtitleLayout = new QHBoxLayout(subtitleFrame);
-    subtitleLayout->setContentsMargins(12, 12, 12, 12);
+    subtitleLayout->setContentsMargins(8, 8, 8, 8);
     subtitleLayout->setSpacing(0);
     
     auto *subtitleLabel = new QLabel("", subtitleFrame);
@@ -1291,7 +1292,7 @@ int main(int argc, char *argv[]) {
     metaFooter->setObjectName("metaFooter");
     auto *metaLayout = new QHBoxLayout(metaFooter);
     metaLayout->setContentsMargins(0, 0, 0, 0);
-    metaLayout->setSpacing(12);
+    metaLayout->setSpacing(8);
     auto *timeLabel = new QLabel(QString::fromUtf8("捕捉时间 · 16:42"), metaFooter);
     timeLabel->setObjectName("metaLabel");
     auto *locationLabel = new QLabel(QString::fromUtf8("位置 · Palermo Rooftop"), metaFooter);
@@ -1300,7 +1301,7 @@ int main(int argc, char *argv[]) {
     metaLayout->addWidget(locationLabel);
     metaLayout->addStretch();
     auto *shareNowButton = new QPushButton(QString::fromUtf8("同步到好友"), metaFooter);
-    // 默认夜间模式下使用高对比版本 share_to_friends1.svg
+    // Default night mode uses high contrast version share_to_friends1.svg
     shareNowButton->setIcon(QIcon(":/icons/icons/share_to_friends1.svg"));
     shareNowButton->setIconSize(QSize(28, 28));
     shareNowButton->setObjectName("shareNowButton");
@@ -1311,22 +1312,21 @@ int main(int argc, char *argv[]) {
     progressSlider->setObjectName("progressSlider");
     progressSlider->setRange(0, 0);
     progressSlider->setEnabled(!videos.empty());
-    progressSlider->setTracking(false);  // 禁用跟踪，只在释放时更新
+    progressSlider->setTracking(false);  // Disable tracking, only update on release
     cardLayout->addWidget(progressSlider);
-    
-    // 添加音量控制条，长度和进度条一样
-    auto *volumeSlider = new QSlider(Qt::Horizontal, berealCard);
-    volumeSlider->setObjectName("volumeSlider");
-    volumeSlider->setRange(0, 100);
-    volumeSlider->setValue(100);  // 默认音量100%
-    volumeSlider->setEnabled(!videos.empty());
-    cardLayout->addWidget(volumeSlider);
     
     // Track whether the user is currently dragging the slider
     auto *isDragging = new bool(false);
 
     auto *controlRow = new QHBoxLayout();
-    controlRow->setSpacing(12);
+    controlRow->setSpacing(8);
+    
+    // Add volume control slider, place in control button row
+    auto *volumeSlider = new QSlider(Qt::Horizontal, berealCard);
+    volumeSlider->setObjectName("volumeSlider");
+    volumeSlider->setRange(0, 100);
+    volumeSlider->setValue(100);  // Default volume 100%
+    volumeSlider->setEnabled(!videos.empty());
 
     auto makePillButton = [&](const QString &label, bool checkable = false) {
         auto *btn = new QPushButton(label, berealCard);
@@ -1361,24 +1361,88 @@ int main(int argc, char *argv[]) {
         }
         return btn;
     };
-    // 夜间模式默认使用高对比图标 *1.svg
+        // Night mode defaults to high contrast icon *1.svg
     auto *playPauseButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/play1.svg"));
     auto *muteButton = makeRecordStyleButton(QString(), true);
     auto *prevMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/prev1.svg"));
     auto *nextMomentButton = makeRecordStyleButton(QStringLiteral(":/icons/icons/next1.svg"));
-    auto *retakeButton = makePillButton(QString::fromUtf8("重拍提示"));
+    
+    // Create container with share and repost buttons
+    auto *shareRepostContainer = new QFrame(berealCard);
+    shareRepostContainer->setObjectName("shareRepostContainer");
+    shareRepostContainer->setStyleSheet(
+        "QFrame#shareRepostContainer {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(255,255,255,0.92), stop:1 rgba(240,248,255,0.92));"
+        "  border-radius: 30px;"
+        "  border: 3px solid #6CADFF;"
+        "}"
+    );
+    auto *shareRepostLayout = new QHBoxLayout(shareRepostContainer);
+    shareRepostLayout->setContentsMargins(0, 0, 0, 0);
+    shareRepostLayout->setSpacing(0);
+    
+    // Share button (left side)
+    auto *shareButton = new QPushButton(shareRepostContainer);
+    shareButton->setObjectName("shareRepostButton");
+    shareButton->setIcon(QIcon(":/icons/icons/share1.svg"));
+    shareButton->setIconSize(QSize(24, 24));
+    shareButton->setCursor(Qt::PointingHandCursor);
+    shareButton->setStyleSheet(
+        "QPushButton#shareRepostButton {"
+        "  background: transparent;"
+        "  border: none;"
+        "  border-top-left-radius: 27px;"
+        "  border-bottom-left-radius: 27px;"
+        "  border-right: 1px solid rgba(108,173,255,0.3);"
+        "  padding: 12px;"
+        "}"
+        "QPushButton#shareRepostButton:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(108,173,255,0.2), stop:1 rgba(58,125,255,0.2));"
+        "}"
+        "QPushButton#shareRepostButton:pressed {"
+        "  background: rgba(255,255,255,0.8);"
+        "}"
+    );
+    
+    // Repost button (right side)
+    auto *repostButton = new QPushButton(shareRepostContainer);
+    repostButton->setObjectName("shareRepostButton");
+    repostButton->setIcon(QIcon(":/icons/icons/repost1.svg"));
+    repostButton->setIconSize(QSize(24, 24));
+    repostButton->setCursor(Qt::PointingHandCursor);
+    repostButton->setStyleSheet(
+        "QPushButton#shareRepostButton {"
+        "  background: transparent;"
+        "  border: none;"
+        "  border-top-right-radius: 27px;"
+        "  border-bottom-right-radius: 27px;"
+        "  padding: 12px;"
+        "}"
+        "QPushButton#shareRepostButton:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(108,173,255,0.2), stop:1 rgba(58,125,255,0.2));"
+        "}"
+        "QPushButton#shareRepostButton:pressed {"
+        "  background: rgba(255,255,255,0.8);"
+        "}"
+    );
+    
+    shareRepostLayout->addWidget(shareButton, 1);
+    shareRepostLayout->addWidget(repostButton, 1);
+    shareRepostContainer->setFixedHeight(60);
 
     controlRow->addWidget(playPauseButton);
     controlRow->addWidget(muteButton);
     controlRow->addWidget(prevMomentButton);
     controlRow->addWidget(nextMomentButton);
-    controlRow->addStretch();
-    controlRow->addWidget(retakeButton);
+    controlRow->addSpacing(16);  // 音量条左侧间距
+    controlRow->addWidget(volumeSlider, 1);  // 音量条放在按钮之间，使用拉伸因子1使其占据剩余空间
+    controlRow->addSpacing(16);  // 音量条右侧间距
+    controlRow->addWidget(shareRepostContainer);
 
     cardLayout->addLayout(controlRow);
 
     auto *reactionRow = new QHBoxLayout();
-    reactionRow->setSpacing(8);
+    reactionRow->setSpacing(6);
     auto *reactionPrompt = new QLabel(QString::fromUtf8("好友的实时反应"), berealCard);
     reactionPrompt->setObjectName("reactionPrompt");
     reactionRow->addWidget(reactionPrompt);
@@ -1403,8 +1467,8 @@ int main(int argc, char *argv[]) {
     auto *commentPanel = new QFrame(berealCard);
     commentPanel->setObjectName("commentPanel");
     auto *commentLayout = new QVBoxLayout(commentPanel);
-    commentLayout->setContentsMargins(18, 18, 18, 18);
-    commentLayout->setSpacing(8);
+    commentLayout->setContentsMargins(12, 12, 12, 12);
+    commentLayout->setSpacing(6);
     auto *captionLabel = new QLabel(QString::fromUtf8("“暮色刚刚落在屋顶，我们同时按下快门。”"), commentPanel);
     captionLabel->setObjectName("captionLabel");
     captionLabel->setWordWrap(true);
@@ -1428,15 +1492,15 @@ int main(int argc, char *argv[]) {
     // Toggle button to allow users to show/hide the comment panel
     auto *toggleCommentButton = new QCheckBox(QString::fromUtf8("显示互动"), berealCard);
     toggleCommentButton->setObjectName("toggleCommentButton");
-    toggleCommentButton->setChecked(true); // 默认显示
+    toggleCommentButton->setChecked(true); // Show by default
     toggleCommentButton->setCursor(Qt::PointingHandCursor);
     cardLayout->addWidget(toggleCommentButton, 0, Qt::AlignRight);
     
-    // 连接切换按钮
+    // Connect toggle button
     QObject::connect(toggleCommentButton, &QCheckBox::toggled,
                      [commentPanel, commentPlaceholder, berealCard](bool checked) {
                          if (checked) {
-                             // 显示互动内容
+                              // Show interaction content
                              commentPlaceholder->hide();
                              commentPanel->show();
                          } else {
@@ -1505,6 +1569,41 @@ int main(int argc, char *argv[]) {
         videoStatusLabel->setVisible(visible);
     };
 
+    // Different location and time info for 21 videos (top-bottom positions remain consistent)
+    struct VideoLocationInfo {
+        QString cityZh;
+        QString cityEn;
+        QString locationZh;
+        QString locationEn;
+        QString time;
+        QString lateHoursZh;
+        QString lateHoursEn;
+    };
+    
+    const VideoLocationInfo locationInfos[21] = {
+        {"Palermo, Buenos Aires", "Palermo, Buenos Aires", "Palermo Rooftop", "Palermo Rooftop", "16:42", "2 小时", "2 hours"},
+        {"Shibuya, Tokyo", "Shibuya, Tokyo", "Shibuya Sky Deck", "Shibuya Sky Deck", "23:15", "1 小时", "1 hour"},
+        {"Montmartre, Paris", "Montmartre, Paris", "Sacré-Cœur Steps", "Sacré-Cœur Steps", "14:28", "3 小时", "3 hours"},
+        {"Central Park, New York", "Central Park, New York", "Bethesda Fountain", "Bethesda Fountain", "18:33", "1 小时", "1 hour"},
+        {"Camden, London", "Camden, London", "Camden Lock Bridge", "Camden Lock Bridge", "20:07", "2 小时", "2 hours"},
+        {"Gangnam, Seoul", "Gangnam, Seoul", "COEX Mall Rooftop", "COEX Mall Rooftop", "21:45", "1 小时", "1 hour"},
+        {"Kreuzberg, Berlin", "Kreuzberg, Berlin", "Tempelhofer Feld", "Tempelhofer Feld", "19:22", "2 小时", "2 hours"},
+        {"Shoreditch, London", "Shoreditch, London", "Brick Lane Market", "Brick Lane Market", "17:50", "3 小时", "3 hours"},
+        {"Harajuku, Tokyo", "Harajuku, Tokyo", "Takeshita Street", "Takeshita Street", "22:08", "1 小时", "1 hour"},
+        {"Le Marais, Paris", "Le Marais, Paris", "Place des Vosges", "Place des Vosges", "15:12", "2 小时", "2 hours"},
+        {"Williamsburg, Brooklyn", "Williamsburg, Brooklyn", "Brooklyn Bridge Park", "Brooklyn Bridge Park", "19:55", "1 小时", "1 hour"},
+        {"Itaewon, Seoul", "Itaewon, Seoul", "Namsan Tower View", "Namsan Tower View", "20:30", "2 小时", "2 hours"},
+        {"Neukölln, Berlin", "Neukölln, Berlin", "Tempelhof Airport", "Tempelhof Airport", "18:45", "3 小时", "3 hours"},
+        {"Palermo, Buenos Aires", "Palermo, Buenos Aires", "Botanical Garden", "Botanical Garden", "16:20", "1 小时", "1 hour"},
+        {"Shinjuku, Tokyo", "Shinjuku, Tokyo", "Tokyo Metropolitan Building", "Tokyo Metropolitan Building", "23:40", "2 小时", "2 hours"},
+        {"Saint-Germain, Paris", "Saint-Germain, Paris", "Seine Riverbank", "Seine Riverbank", "14:55", "2 小时", "2 hours"},
+        {"Greenwich Village, NYC", "Greenwich Village, NYC", "Washington Square", "Washington Square", "18:15", "1 小时", "1 hour"},
+        {"Hackney, London", "Hackney, London", "Victoria Park", "Victoria Park", "20:25", "3 小时", "3 hours"},
+        {"Hongdae, Seoul", "Hongdae, Seoul", "Hongik University Street", "Hongik University Street", "21:18", "1 小时", "1 hour"},
+        {"Prenzlauer Berg, Berlin", "Prenzlauer Berg, Berlin", "Mauerpark", "Mauerpark", "19:05", "2 小时", "2 hours"},
+        {"Palermo, Buenos Aires", "Palermo, Buenos Aires", "Recoleta Cemetery", "Recoleta Cemetery", "17:10", "2 小时", "2 hours"}
+    };
+
     auto updateMomentMeta = [&](int index) {
         const auto pick = [&accessibilityPrefs](const QString &zh, const QString &en) {
             return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
@@ -1534,6 +1633,10 @@ int main(int argc, char *argv[]) {
                                             QStringLiteral("Untitled clip"))
                                      : fileInfo.completeBaseName();
 
+        // Obtain the corresponding location and time information based on the video index
+        const int locationIndex = index % 21;
+        const VideoLocationInfo &info = locationInfos[locationIndex];
+
         momentLabel->setText(pick(
             QString::fromUtf8("真实瞬间 · %1 / %2").arg(index + 1).arg(videos.size()),
             QStringLiteral("Real drops · %1 / %2").arg(index + 1).arg(videos.size())));
@@ -1541,11 +1644,17 @@ int main(int argc, char *argv[]) {
             QString::fromUtf8("“%1 · 与好友同步”").arg(clipName),
             QStringLiteral("“%1 · In sync with friends”").arg(clipName)));
         timeLabel->setText(pick(
-            QString::fromUtf8("捕捉时间 · %1").arg(QTime::currentTime().toString("hh:mm")),
-            QStringLiteral("Captured at · %1").arg(QTime::currentTime().toString("hh:mm"))));
+            QString::fromUtf8("捕捉时间 · %1").arg(info.time),
+            QStringLiteral("Captured at · %1").arg(info.time)));
         locationLabel->setText(pick(
-            QString::fromUtf8("位置 · Palermo Rooftop"),
-            QStringLiteral("Location · Palermo Rooftop")));
+            QString::fromUtf8("位置 · %1").arg(info.locationZh),
+            QStringLiteral("Location · %1").arg(info.locationEn)));
+        
+        // Update dropMeta (displayed at the top of the card)
+        dropMeta->setText(pick(
+            QString::fromUtf8("距官方提醒 %1 · %2").arg(info.lateHoursZh, info.cityZh),
+            QStringLiteral("%1 late · %2").arg(info.lateHoursEn, info.cityEn)));
+        
         reactionPrompt->setText(baseReactionPromptText());
         narrate(QString("%1. %2").arg(momentLabel->text(), captionLabel->text()));
     };
@@ -1566,13 +1675,12 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    // 应用视频显示参数（亮度、对比度、饱和度）到 QVideoWidget
+    // Apply video display parameters (brightness, contrast, saturation) to QVideoWidget
     auto applyVideoDisplayParams = [videoWidget, &accessibilityPrefs]() {
         if (!videoWidget) {
             return;
         }
-        // 将 0.0-2.0 范围转换为 QVideoWidget 的 -100.0 到 100.0 范围
-        // 1.0 对应 0.0，0.0 对应 -100.0，2.0 对应 100.0
+       
         qreal brightness = (accessibilityPrefs.brightness - 1.0) * 100.0;
         qreal contrast = (accessibilityPrefs.contrast - 1.0) * 100.0;
         qreal saturation = (accessibilityPrefs.saturation - 1.0) * 100.0;
@@ -1599,34 +1707,36 @@ int main(int argc, char *argv[]) {
         if (subtitleController) {
             subtitleController->setActiveVideo(videos.at(currentVideoIndex).url->toLocalFile());
         }
-        // 应用播放倍速设置
+        // Apply playback speed settings
         player->setPlaybackRate(accessibilityPrefs.playbackRate);
-        // 应用视频显示参数
+        // Apply video display parameter settings
         applyVideoDisplayParams();
         player->play();
     };
 
+    // Share button functionality: displays the platform selection panel (similar to PublishPage)
+    // Needs to be declared before applyHomeLanguage so it can be accessed within the function
+    PopupPanel *panelShare = nullptr;
+    QPushButton *shareConfirmButton = nullptr;
+    
     auto applyHomeLanguage = [&]() {
         const auto pick = [&accessibilityPrefs](const QString &zh, const QString &en) {
             return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
         };
 
-        heroTitle->setText(pick(QString::fromUtf8("白日梦"),
-                                QStringLiteral("Daydream Night")));
+        heroTitle->setText(pick(QString::fromUtf8("对跖点: 白日梦我"),
+                                QStringLiteral("Antipode: Day Dream Night")));
         heroSubtitle->setText(pick(
-            QString::fromUtf8("双摄延迟 %1 分钟 · 与朋友共享未修饰瞬间").arg(8),
-            QStringLiteral("Dual-camera delay %1 min · Share unfiltered moments with friends").arg(8)));
-        dropMeta->setText(pick(
-            QString::fromUtf8("距官方提醒 2 小时 · Palermo, Buenos Aires"),
-            QStringLiteral("2 hours late · Palermo, Buenos Aires")));
+            QString::fromUtf8("来自地球另一边的瞬间"),
+            QStringLiteral("Say hi to the far side of the Earth.")));
+        // dropMeta is updated by updateMomentMeta based on the current video index
         lateBadge->setText(pick(QString::fromUtf8("双摄延迟 2 小时"),
                                 QStringLiteral("Dual-camera delay · 2h")));
         networkBadge->setText(pick(QString::fromUtf8("4G · 68%"),
                                    QStringLiteral("4G · 68%")));
         shareNowButton->setText(pick(QString::fromUtf8("同步到好友"),
                                      QStringLiteral("Share to friends")));
-        retakeButton->setText(pick(QString::fromUtf8("重拍提示"),
-                                   QStringLiteral("Retake tip")));
+        // The share and repost buttons do not need text updates (icons only)
         reactionPrompt->setText(baseReactionPromptText());
         commentLabel->setText(pick(
             QString::fromUtf8("Luca: 这景色像极了我们上次的深夜实验！"),
@@ -1640,6 +1750,13 @@ int main(int argc, char *argv[]) {
         updateSelfie(currentVideoIndex);
         updatePlayPauseVisual();
         updateMuteIcon();
+        // Update the share panel title and the confirm button text (if already created)
+        if (panelShare) {
+            panelShare->setTitle(pick(QString::fromUtf8("分享到"), QStringLiteral("Share to")));
+            if (shareConfirmButton) {
+                shareConfirmButton->setText(pick(QString::fromUtf8("确定"), QStringLiteral("Confirm")));
+            }
+        }
     };
     applyHomeLanguage();
 
@@ -1649,14 +1766,141 @@ int main(int argc, char *argv[]) {
     QObject::connect(prevMomentButton, &QPushButton::clicked, [&, playVideoAt]() {
         playVideoAt(currentVideoIndex - 1);
     });
+    auto initSharePanel = [&]() {
+        if (!panelShare) {
+            panelShare = new PopupPanel(berealCard);
+            QWidget *container = new QWidget;
+            QVBoxLayout *containerLayout = new QVBoxLayout(container);
+            containerLayout->setContentsMargins(0, 0, 0, 0);
+            containerLayout->setSpacing(16);
+            
+            QWidget *box = new QWidget;
+            QGridLayout *grid = new QGridLayout(box);
+            grid->setContentsMargins(10, 10, 10, 10);
+            grid->setHorizontalSpacing(16);
+            grid->setVerticalSpacing(24);
+            QStringList platforms = {"Instagram", "Tinder", "X (Twitter)", "Telegram", "微信", "B站"};
+            
+            QVector<QCheckBox*> platformCheckboxes;
 
-    QObject::connect(retakeButton, &QPushButton::clicked, [setVideoStatus, narrate, &accessibilityPrefs, pickText]() {
-        const QString retakeHint = pickText(
-            QString::fromUtf8("贴士：BeReal 只允许一次重拍"),
-            QStringLiteral("Heads-up: BeReal only allows one retake"));
-        setVideoStatus(retakeHint, true);
-        narrate(retakeHint);
-        QTimer::singleShot(2200, [setVideoStatus]() {
+            for (int i = 0; i < platforms.size(); ++i) {
+                const QString &p = platforms.at(i);
+                QCheckBox *ck = new QCheckBox(p, box);
+                ck->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+                ck->setStyleSheet(
+                    "QCheckBox {"
+                    "  color: white;"
+                    "  font-size: 14px;"
+                    "  font-weight: 500;"
+                    "  padding: 8px 4px;"
+                    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(108,173,255,0.1), stop:1 rgba(58,125,255,0.15));"
+                    "  border: 1px solid #6CADFF;"
+                    "  border-radius: 8px;"
+                    "}"
+                    "QCheckBox::indicator {"
+                    "  width: 18px;"
+                    "  height: 18px;"
+                    "  border: 2px solid #6CADFF;"
+                    "  border-radius: 4px;"
+                    "  background: transparent;"
+                    "}"
+                    "QCheckBox::indicator:checked {"
+                    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6CADFF, stop:1 #3A7DFF);"
+                    "  border-color: #FF4F70;"
+                    "}"
+                    "QCheckBox:hover {"
+                    "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(108,173,255,0.2), stop:1 rgba(255,79,112,0.2));"
+                    "  border-color: #FF4F70;"
+                    "}"
+                );
+                platformCheckboxes.append(ck);
+                int row = i / 2;
+                int col = i % 2;
+                grid->addWidget(ck, row, col);
+            }
+            
+            containerLayout->addWidget(box);
+            
+            // add confirm button
+            QPushButton *confirmButton = new QPushButton(container);
+            confirmButton->setText(pickText(QString::fromUtf8("确定"), QStringLiteral("Confirm")));
+            shareConfirmButton->setStyleSheet(
+                "QPushButton {"
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6CADFF, stop:1 #3A7DFF);"
+                "  color: white;"
+                "  border: 2px solid #6CADFF;"
+                "  border-radius: 12px;"
+                "  padding: 12px 24px;"
+                "  font-size: 16px;"
+                "  font-weight: 600;"
+                "}"
+                "QPushButton:hover {"
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3A7DFF, stop:1 #6CADFF);"
+                "  border-color: #FF4F70;"
+                "}"
+                "QPushButton:pressed {"
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2A6DEF, stop:1 #5C9DFF);"
+                "}"
+            );
+            shareConfirmButton->setCursor(Qt::PointingHandCursor);
+            
+            QObject::connect(shareConfirmButton, &QPushButton::clicked, [&, platformCheckboxes, setVideoStatus, narrate, pickText]() {
+                QStringList selectedPlatforms;
+                for (QCheckBox *ck : platformCheckboxes) {
+                    if (ck->isChecked()) {
+                        selectedPlatforms.append(ck->text());
+                    }
+                }
+                
+                if (selectedPlatforms.isEmpty()) {
+                    const QString noSelectionMsg = pickText(
+                        QString::fromUtf8("请至少选择一个平台"),
+                        QStringLiteral("Please select at least one platform"));
+                    setVideoStatus(noSelectionMsg, true);
+                    narrate(noSelectionMsg);
+                    QTimer::singleShot(2000, [setVideoStatus]() {
+                        setVideoStatus(QString(), false);
+                    });
+                } else {
+                    const QString shareMsg = pickText(
+                        QString::fromUtf8("已分享到: %1 ✅").arg(selectedPlatforms.join(", ")),
+                        QStringLiteral("Shared to: %1 ✅").arg(selectedPlatforms.join(", ")));
+                    setVideoStatus(shareMsg, true);
+                    narrate(shareMsg);
+                    panelShare->hidePanel();
+                    QTimer::singleShot(2000, [setVideoStatus]() {
+                        setVideoStatus(QString(), false);
+                    });
+                }
+            });
+            
+            containerLayout->addWidget(shareConfirmButton);
+
+            panelShare->setContent(container);
+        }
+        const auto pick = [&accessibilityPrefs](const QString &zh, const QString &en) {
+            return accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? zh : en;
+        };
+        panelShare->setTitle(pick(QString::fromUtf8("分享到"), QStringLiteral("Share to")));
+        // Update the confirm button text (if created)
+        if (shareConfirmButton) {
+            shareConfirmButton->setText(pick(QString::fromUtf8("确定"), QStringLiteral("Confirm")));
+        }
+    };
+    
+    QObject::connect(shareButton, &QPushButton::clicked, [&]() {
+        initSharePanel();
+        panelShare->showPanel();
+    });
+
+    // Repost button function: directly shows 'Share Successful'
+    QObject::connect(repostButton, &QPushButton::clicked, [&, setVideoStatus, narrate, pickText]() {
+        const QString repostMessage = pickText(
+            QString::fromUtf8("转发成功 ✅"),
+            QStringLiteral("Reposted successfully ✅"));
+        setVideoStatus(repostMessage, true);
+        narrate(repostMessage);
+        QTimer::singleShot(2000, [setVideoStatus]() {
             setVideoStatus(QString(), false);
         });
     });
@@ -1704,9 +1948,9 @@ int main(int argc, char *argv[]) {
         }
     });
 
-    // 静音按钮连接（与音量条同步，见下方音量控制条连接）
+    // Mute button connection (synchronized with the volume bar, see the volume control bar connection below)
 
-    // Slider drag handling - 修复拖动后回到原位置的问题
+    // Slider drag handling - fix the issue of returning to the original position after dragging
     QObject::connect(progressSlider, &QSlider::sliderPressed, [isDragging]() {
         *isDragging = true;
     });
@@ -1737,11 +1981,11 @@ int main(int argc, char *argv[]) {
         }
     });
     
-    // 音量控制条连接
+    // Volume control bar connection
     QObject::connect(volumeSlider, &QSlider::valueChanged, [player, muteButton](int value) {
         player->setVolume(value);
-        // 如果音量设为0，自动静音；如果从0增加，取消静音
-        // 使用 blockSignals 避免循环触发
+        // If the volume is set to 0, mute automatically; if it increases from 0, unmute
+        // Use blockSignals to avoid triggering a loop
         if (value == 0 && !muteButton->isChecked()) {
             muteButton->blockSignals(true);
             muteButton->setChecked(true);
@@ -1752,11 +1996,11 @@ int main(int argc, char *argv[]) {
             muteButton->blockSignals(false);
         }
     });
-    // 同步静音按钮和音量条
+    // Sync mute button and volume bar
     QObject::connect(muteButton, &QPushButton::toggled, [player, volumeSlider, updateMuteIcon](bool checked) {
         player->setMuted(checked);
         updateMuteIcon();
-        // 如果取消静音，恢复之前的音量（如果当前是0，设为50）
+        // If unmuted, restore the previous volume (if it's currently 0, set it to 50)
         if (!checked && volumeSlider->value() == 0) {
             volumeSlider->blockSignals(true);
             volumeSlider->setValue(50);
@@ -1764,7 +2008,7 @@ int main(int argc, char *argv[]) {
         }
     });
 
-    // 连接字幕控制器
+    // Connect to the subtitle controller
     QObject::connect(player, &QMediaPlayer::positionChanged, subtitleController, &SubtitleController::handlePosition);
     QObject::connect(subtitleController, &SubtitleController::subtitleChanged,
                      [subtitleLabel, subtitleFrame, &accessibilityPrefs, &subtitleAvailable, pickText](const QString &text) {
@@ -1903,9 +2147,9 @@ int main(int argc, char *argv[]) {
         }
     });
 
-    // 初始化LanguageManager，确保默认语言与无障碍设置一致
+    // Initialize the LanguageManager to ensure the default language aligns with accessibility settings
     LanguageManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
-    
+
     ProfilePage *profilePage = new ProfilePage(videos);
     profilePage->setLanguage(accessibilityPrefs.interfaceLanguage);
     profilePage->setHighContrastMode(accessibilityPrefs.colorBlindPaletteEnabled);
@@ -1913,11 +2157,11 @@ int main(int argc, char *argv[]) {
     ChatPage *chatPage = new ChatPage();
     chatPage->setLanguage(accessibilityPrefs.interfaceLanguage);
     chatPage->setHighContrastMode(accessibilityPrefs.colorBlindPaletteEnabled);
-    FriendsPage *friendsPage = new FriendsPage(videos);  // 传递视频列表
+    FriendsPage *friendsPage = new FriendsPage(videos);  // Pass video list
     RecordPage *recordPage = new RecordPage();
     PublishPage *publishPage = new PublishPage();
 
-    // 创建滚动区域来显示背景图
+    // Create a scrollable area to display the background image
     QScrollArea *homeScrollArea = new QScrollArea();
     homeScrollArea->setWidget(homePage);
     homeScrollArea->setWidgetResizable(true);
@@ -1948,14 +2192,14 @@ int main(int argc, char *argv[]) {
     
     // Give homePage enough height so the background can scroll slightly
     // Earth artwork focuses on the lower half, so we add extra vertical space
-    // 设置足够的最小高度，确保即使隐藏互动内容，滚动条仍然可用
-    homePage->setMinimumHeight(1200); // 允许滚动，但不要过长
+    // Set a sufficient minimum height to ensure the scrollbar is still available even when interactive content is hidden
+    homePage->setMinimumHeight(1200); // Allow scrolling, but not for too long
     homePage->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
     
-    // 连接滚动条信号，使色环随滚动变化
+    // Connect the scrollbar signal so that the color wheel changes with scrolling
     QObject::connect(homeScrollArea->verticalScrollBar(), &QAbstractSlider::valueChanged, 
                      [homePage, homeScrollArea](int value) {
-        // 将滚动位置转换为角度（0-360度）
+        // Convert scroll position to angle (0-360 degrees)
         const int maxScroll = homeScrollArea->verticalScrollBar()->maximum();
         if (maxScroll > 0) {
             const qreal angle = (static_cast<qreal>(value) / maxScroll) * 360.0;
@@ -1971,7 +2215,7 @@ int main(int argc, char *argv[]) {
     stackedPages->addWidget(recordPage);    // 2: Record
     stackedPages->addWidget(chatPage);      // 3: Chat
     stackedPages->addWidget(profilePage);   // 4: Profile
-    stackedPages->addWidget(publishPage);   // 5: Publish (隐藏页面，通过信号跳转)
+    stackedPages->addWidget(publishPage);   // 5: Publish 
 
     QWidget window;
     window.setObjectName("appRoot");
@@ -1983,7 +2227,7 @@ int main(int argc, char *argv[]) {
     window.setMinimumSize(420, 720);
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
-    // 初始化语音播报管理器
+    // Initialize the voice broadcast manager
     NarrationManager::instance().initialize(&window);
     NarrationManager::instance().setEnabled(accessibilityPrefs.narrationEnabled);
     NarrationManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
@@ -2369,15 +2613,15 @@ int main(int argc, char *argv[]) {
             "QPushButton#pillButton { background-color: #f4c430; color: #000; border-radius: 18px; padding: 10px 18px; font-weight: 700; }"
             "QPushButton#reactionButton { background-color: #000; color: #f4c430; border: 2px solid #f4c430; }"
             "QFrame#commentPanel { background: #0f0f0f; border-radius: 26px; border: 2px solid #f4c430; }"
-            // 高对比：回复按钮黑底黄字
+            // High contrast: reply button with black background and yellow text
             "QPushButton#replyButton { background-color: #000000; color: #f4c430; border: 2px solid #f4c430; border-radius: 18px; font-weight: 700; padding: 6px 18px; }"
             "QPushButton#replyButton:hover { background-color: #111111; border-color: #ffd700; }"
-            // 高对比：分享给好友（metaFooter 里的 shareNowButton）模块黑底黄字
+            // High contrast: Share with friends (shareNowButton in metaFooter) module with black background and yellow text
             "QPushButton#shareNowButton { background-color: #000000; color: #f4c430; border: 2px solid #f4c430; border-radius: 20px; padding: 8px 20px; font-weight: 700; }"
             "QPushButton#shareNowButton:hover { background-color: #111111; border-color: #ffd700; }"
             "QLabel#metaLabel { color: #f4c430; }"
             "QFrame#floatingNav { background-color: #000000; border: 2px solid #f4c430; border-radius: 28px; }"
-            // 高对比模式下：导航按钮文字永远在纯黑背景上，大小一致
+            // In high contrast mode: navigation button text is always on a pure black background, and the size is consistent
             "QPushButton#navButton {"
             "  background-color: #000000;"
             "  color: #f4c430;"
@@ -2436,7 +2680,7 @@ int main(int argc, char *argv[]) {
         } else if (!night && !highContrast) {
             homePage->setBackgroundImage(backgroundUrlDay);
         }
-        // 更新ProfilePage和ChatPage的主题
+        // Update the theme of ProfilePage and ChatPage
         if (profilePage) {
             profilePage->setHighContrastMode(highContrast);
             if (!highContrast) {
@@ -2509,7 +2753,7 @@ int main(int argc, char *argv[]) {
         button->setObjectName("navButton");
         button->setCheckable(true);
         button->setCursor(Qt::PointingHandCursor);
-        // 保证五个按钮大小一致：统一高度 + 横向等分
+        // Ensure that the five buttons are the same size: uniform height + equal horizontal spacing
         button->setMinimumHeight(44);
         button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         navGroup->addButton(button, spec.index);
@@ -2520,13 +2764,13 @@ int main(int argc, char *argv[]) {
         QObject::connect(button, &QPushButton::toggled, stackedPages, [stackedPages, targetIndex, &spec, &accessibilityPrefs](bool checked) {
             if (checked) {
                 stackedPages->setCurrentIndex(targetIndex);
-                // 播报页面切换
+                // Broadcast page switch
                 QString pageName = accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese ? spec.zh : spec.en;
                 NarrationManager::instance().narrate(pageName);
             }
         });
 
-        // 处理导航栏按钮引用
+        // Handle navigation bar button references
         if (targetIndex == 0) {
             homeNavButton = button;
         } else if (targetIndex == 1) {
@@ -2569,10 +2813,10 @@ int main(int argc, char *argv[]) {
 
     top->addWidget(navWrapper, 0, Qt::AlignBottom);
 
-    // 页面跳转逻辑：Record -> Publish
+    // Page navigation logic: Record -> Publish
     QObject::connect(recordPage, &RecordPage::recordingFinished, [&](){
-        stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
-        // 语音播报
+        stackedPages->setCurrentIndex(5);  // Navigate to the Publish page
+        // voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("录制完成，进入发布页面"),
             "Recording finished, entering publish page"
@@ -2588,33 +2832,33 @@ int main(int argc, char *argv[]) {
                          } else {
                              stackedPages->setCurrentIndex(1);  // Switch to Friends page
                          }
-                         // 语音播报
+                         // voice narration
                          NarrationManager::instance().narrate(
                              QString::fromUtf8("发布成功，已添加到朋友圈"),
                              "Published successfully, added to friends feed"
                          );
                      });
 
-    // 页面跳转逻辑：Publish -> Record (返回)
+    // Page navigation logic: Publish -> Record (Back)
     QObject::connect(publishPage, &PublishPage::backToRecord, [&](){
-        stackedPages->setCurrentIndex(2);  // Record 页面
+        stackedPages->setCurrentIndex(2);  // Record 
         if (recordNavButton) {
             recordNavButton->setChecked(true);
         }
     });
 
-    // 页面跳转逻辑：Record -> Publish (选择草稿)
+    // Page navigation logic: Record -> Publish (select draft)
     QObject::connect(recordPage, &RecordPage::draftSelected, [&](const QString &draftText){
         publishPage->loadDraft(draftText);
-        stackedPages->setCurrentIndex(5);  // 跳转到 Publish 页面
-        // 语音播报
+        stackedPages->setCurrentIndex(5);  // Go to the Publish page
+        // voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("已选择草稿，进入发布页面"),
             "Draft selected, entering publish page"
         );
     });
 
-    // Profile 页面播放视频请求
+    // Video playback request on the Profile page
     if (profilePage) {
         QObject::connect(profilePage, &ProfilePage::playVideoRequested, &window, [&, homeNavButton](int index) {
             if (homeNavButton && !homeNavButton->isChecked()) {
@@ -2623,7 +2867,7 @@ int main(int argc, char *argv[]) {
                 stackedPages->setCurrentIndex(0);
             }
             playVideoAt(index);
-            // 语音播报
+            // Voice Broadcast
             NarrationManager::instance().narrate(
                 QString::fromUtf8("播放视频 %1").arg(index + 1),
                 QString("Playing video %1").arg(index + 1)
@@ -2636,24 +2880,24 @@ int main(int argc, char *argv[]) {
         if (profileNavButton) {
             profileNavButton->setChecked(true);
         } else {
-            stackedPages->setCurrentIndex(4);  // Profile 页面
+            stackedPages->setCurrentIndex(4);  // Profile page
         }
         
-        // 语音播报
+        // voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("打开 %1 的主页").arg(username),
             QString("Open %1's profile").arg(username)
         );
         
-        // 设置用户信息
+        // Set User Information
         if (profilePage) {
-            // 生成用户信息
+            // Generate user information
             QString displayName = username;
             if (!displayName.isEmpty()) {
                 displayName[0] = displayName[0].toUpper();
             }
             
-            // 根据用户名生成不同的bio（使用哈希确保一致性）
+            // Generate different bios based on the username (using hashing to ensure consistency)
             uint hash = qHash(username);
             QStringList bios = {
                 "Creator of amazing content • Sharing life moments",
@@ -2667,7 +2911,7 @@ int main(int argc, char *argv[]) {
             };
             QString bio = bios.at(hash % bios.size());
             
-            // 获取用户头像路径
+            // Get user avatar path
             QString avatarPath = getAvatarPathForUser(username);
             
             profilePage->setUserInfo(username, displayName, bio, avatarPath);
@@ -2682,7 +2926,7 @@ int main(int argc, char *argv[]) {
             stackedPages->setCurrentIndex(0);
         }
         playVideoAt(index);
-        // 语音播报
+        // voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("播放视频 %1").arg(index + 1),
             QString("Playing video %1").arg(index + 1)
@@ -2690,7 +2934,7 @@ int main(int argc, char *argv[]) {
     });
 
     QAction *accessibilityAction = nullptr;
-    // 键盘快捷键支持 - 需要在使用前定义
+    // Keyboard shortcut support - needs to be defined before use
     QVector<QShortcut *> keyboardShortcuts;
     auto rebuildKeyboardShortcuts = [&, volumeSlider]() {
         for (auto *shortcut : keyboardShortcuts) {
@@ -2743,23 +2987,23 @@ int main(int argc, char *argv[]) {
             });
         }
         if (player) {
-            // 跳过 5 秒
+            // Jump pass 5 seconds
             addShortcut(QKeySequence(Qt::Key_Right), [player]() {
                 const qint64 duration = std::max<qint64>(0, player->duration());
                 const qint64 nextPos = player->position() + 5000;
                 player->setPosition(std::min(nextPos, duration));
             });
-            // 回退 5 秒
+            // back 5 seconds
             addShortcut(QKeySequence(Qt::Key_Left), [player]() {
                 const qint64 nextPos = player->position() - 5000;
                 player->setPosition(std::max<qint64>(0, nextPos));
             });
-            // 调整音量
+            // adjust volumes
             addShortcut(QKeySequence(Qt::Key_Up), [player, volumeSlider]() {
                 const int currentVolume = player->volume();
                 const int newVolume = qMin(100, currentVolume + 5);
                 player->setVolume(newVolume);
-                // 同步更新音量条
+                // Synchronize volume bar
                 if (volumeSlider) {
                     volumeSlider->blockSignals(true);
                     volumeSlider->setValue(newVolume);
@@ -2770,14 +3014,14 @@ int main(int argc, char *argv[]) {
                 const int currentVolume = player->volume();
                 const int newVolume = qMax(0, currentVolume - 5);
                 player->setVolume(newVolume);
-                // 同步更新音量条
+                // Synchronize volume bar
                 if (volumeSlider) {
                     volumeSlider->blockSignals(true);
                     volumeSlider->setValue(newVolume);
                     volumeSlider->blockSignals(false);
                 }
             });
-            // 使用 [ / ] / 0 键控制倍速：0.5x, 1.0x, 1.5x, 2.0 四个档位
+            // Use the [ / ] / 0 keys to control playback speed: 0.5x, 1.0x, 1.5x, 2.0 four levels
             addShortcut(QKeySequence(Qt::Key_BracketRight), [&accessibilityPrefs, player]() {
                 static const double kRates[] = {0.5, 1.0, 1.5, 2.0};
                 double rate = accessibilityPrefs.playbackRate;
@@ -2815,6 +3059,29 @@ int main(int argc, char *argv[]) {
                 player->setPlaybackRate(1.0);
             });
         }
+
+        // Additional keyboard navigation (added on top of existing shortcuts)
+        // Ctrl + Left / Up: Next video
+        if (nextMomentButton) {
+            addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Left), [&, playVideoAt]() {
+                playVideoAt(currentVideoIndex + 1);
+            });
+            addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up), [&, playVideoAt]() {
+                playVideoAt(currentVideoIndex + 1);
+            });
+        }
+        // Ctrl + Down: Previous video
+        if (prevMomentButton) {
+            addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down), [&, playVideoAt]() {
+                playVideoAt(currentVideoIndex - 1);
+            });
+        }
+        // Ctrl + Right: Go to Profile page
+        if (profileNavButton) {
+            addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Right), [profileNavButton]() {
+                profileNavButton->setChecked(true);
+            });
+        }
     };
 
     if (settingsButton) {
@@ -2833,7 +3100,7 @@ int main(int argc, char *argv[]) {
             applyTheme(true);
         });
 
-        // 界面语言功能已合并到 AccessibilitySettingsDialog 中，不再在 Settings 菜单中重复
+        // The interface language feature has been merged into AccessibilitySettingsDialog and is no longer duplicated in the Settings menu
         auto updateMenuLanguage = [settingsButton, settingsMenu, dayModeAction, nightModeAction, accessibilityAction, &accessibilityPrefs]() {
             const bool isChinese = accessibilityPrefs.interfaceLanguage == AppLanguage::Chinese;
             settingsButton->setText(isChinese ? QString::fromUtf8("设置") : "Settings");
@@ -2861,16 +3128,16 @@ int main(int argc, char *argv[]) {
                 }
                 accessibilityPrefs = dialog.preferences();
                 
-                // 更新LanguageManager，这样RecordPage和FriendsPage会自动响应
+                // Update LanguageManager so that RecordPage and FriendsPage will respond automatically
                 LanguageManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
                 
-                // 应用新的无障碍设置
+                // Apply new accessibility settings
                 subtitleController->setLanguage(accessibilityPrefs.subtitleLanguage);
                 subtitleController->setEnabled(accessibilityPrefs.subtitlesEnabled);
                 if (player) {
                     player->setPlaybackRate(accessibilityPrefs.playbackRate);
                 }
-                // 应用视频显示参数（亮度、对比度、饱和度）
+                // Apply video display parameters (brightness, contrast, saturation)
                 if (videoWidget) {
                     qreal brightness = (accessibilityPrefs.brightness - 1.0) * 100.0;
                     qreal contrast = (accessibilityPrefs.contrast - 1.0) * 100.0;
@@ -2879,11 +3146,11 @@ int main(int argc, char *argv[]) {
                     videoWidget->setContrast(contrast);
                     videoWidget->setSaturation(saturation);
                 }
-                // 更新语音播报设置
+                // Update voice broadcast settingss
                 NarrationManager::instance().setEnabled(accessibilityPrefs.narrationEnabled);
                 NarrationManager::instance().setLanguage(accessibilityPrefs.interfaceLanguage);
                 
-                // 更新所有页面的语言
+                // Update the language for all pages
                 applyHomeLanguage();
                 applyNavLanguage();
                 if (profilePage) {
@@ -2896,11 +3163,11 @@ int main(int argc, char *argv[]) {
                 }
                 updateMenuLanguage();
                 
-                // 重新应用主题以反映色盲模式
+                // Reapply theme to reflect colorblind mode
                 applyTheme(nightMode);
-                // 重建键盘快捷键
+                // Rebuild keyboard shortcuts
                 rebuildKeyboardShortcuts();
-                // 更新字幕可用性
+                // Update subtitle availability
                 if (!videos.empty()) {
                     subtitleController->setActiveVideo(videos.at(currentVideoIndex).url->toLocalFile());
                 }
@@ -2919,8 +3186,8 @@ int main(int argc, char *argv[]) {
 }
 #endif // QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 
-// MOC 处理：对于在 .cpp 文件中定义的 Q_OBJECT 类（SubtitleController 和 AccessibilitySettingsDialog），
-// 需要在文件末尾包含 .moc 文件，这样 MOC 才能正确生成元对象代码
+// MOC handling: For Q_OBJECT classes defined in .cpp files (SubtitleController and AccessibilitySettingsDialog),
+// the .moc file needs to be included at the end of the file so that MOC can correctly generate the meta-object code
 #include "tomeo.moc"
 
 

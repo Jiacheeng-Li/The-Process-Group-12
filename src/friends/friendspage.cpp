@@ -85,7 +85,7 @@ FriendsPage::FriendsPage(QWidget *parent)
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 删除滚动条
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Remove scrollbar
     scrollArea->setStyleSheet("border:none; background: transparent;");
     scrollArea->viewport()->setStyleSheet("background: transparent;");
 
@@ -100,7 +100,7 @@ FriendsPage::FriendsPage(QWidget *parent)
     QVBoxLayout *main = new QVBoxLayout(this);
     main->setContentsMargins(24, 0, 12, 0);
     main->setSpacing(0);
-    main->addWidget(scrollArea, 1); // 使用stretch factor让scrollArea填充空间
+    main->addWidget(scrollArea, 1); // Use stretch factor to let scrollArea fill space
     
     applyThemeStyles();
     updateResponsiveLayout();
@@ -115,7 +115,7 @@ FriendsPage::FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // 删除滚动条
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Remove scrollbar
     scrollArea->setStyleSheet("border:none; background: transparent;");
     scrollArea->viewport()->setStyleSheet("background: transparent;");
 
@@ -130,7 +130,7 @@ FriendsPage::FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     QVBoxLayout *main = new QVBoxLayout(this);
     main->setContentsMargins(24, 0, 12, 0);
     main->setSpacing(0);
-    main->addWidget(scrollArea, 1); // 使用stretch factor让scrollArea填充空间
+    main->addWidget(scrollArea, 1); // Use stretch factor to let scrollArea fill space
 
     initializeWithVideos(videos);
     applyThemeStyles();
@@ -139,7 +139,7 @@ FriendsPage::FriendsPage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 
 void FriendsPage::setVideos(const std::vector<TheButtonInfo> &videos)
 {
-    // 清空现有内容
+    // Clear existing content
     QLayoutItem* item;
     while ((item = listLayout->takeAt(0)) != nullptr) {
         delete item->widget();
@@ -155,13 +155,13 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
     videoList = videos;
     
     if (videos.empty()) {
-        // 如果没有视频，生成一些模拟内容
+        // If no videos, generate some mock content
         QStringList users = {"Alice", "Bob", "Ethan", "Luna", "Olivia", "James", "Lucas", "Sophia"};
         for (int i = 0; i < 10; ++i) {
             QString user = users.at(QRandomGenerator::global()->bounded(users.size()));
             QDateTime t = QDateTime::currentDateTime().addSecs(-i * 600);
             FriendPostCopy copy = randomCopyForUser(user);
-            // 创建一个空的缩略图路径
+            // Create an empty thumbnail path
             FriendItem *item = new FriendItem("", user, "", t, -1, copy);
             item->setDayMode(dayMode_ && !highContrastMode_);
             connect(item, &FriendItem::commentRequested, this, &FriendsPage::onCommentRequested);
@@ -170,23 +170,23 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
         return;
     }
 
-    // 使用实际的视频缩略图创建朋友圈动态
+    // Use actual video thumbnails to create friend feed posts
     QStringList users = {"Alice", "Bob", "Ethan", "Luna", "Olivia", "James", "Lucas", "Sophia", "Emma", "Noah", "Mia", "Oliver"};
     QStringList avatarColors = {"#2f8dff", "#ff6b6b", "#4ecdc4", "#ffe66d", "#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3"};
 
-    // 生成 30-40 条朋友圈动态
-    int numPosts = qMin(40, static_cast<int>(videos.size() * 5));  // 如果视频少，生成更多动态
+    // Generate 30-40 friend feed posts
+    int numPosts = qMin(40, static_cast<int>(videos.size() * 5));  // If fewer videos, generate more posts
     for (int i = 0; i < numPosts; ++i) {
         QString user = users.at(QRandomGenerator::global()->bounded(users.size()));
         FriendPostCopy copy = randomCopyForUser(user);
         
-        // 从视频列表中选择一个缩略图（循环使用）
+        // Select a thumbnail from video list (reuse cyclically)
         const TheButtonInfo &videoInfo = videos.at(i % videos.size());
         QString thumbPath;
         QPixmap thumbPix;
         bool hasThumbnail = false;
         
-        // 首先尝试从视频URL获取缩略图PNG文件路径
+        // First try to get thumbnail PNG file path from video URL
         if (videoInfo.url && videoInfo.url->isLocalFile()) {
             QString videoPath = videoInfo.url->toLocalFile();
             QString pngPath = videoPath.left(videoPath.length() - 4) + ".png";
@@ -199,7 +199,7 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
             }
         }
         
-        // 如果没有找到PNG文件，尝试使用图标
+        // If PNG file not found, try using icon
         if (!hasThumbnail && videoInfo.icon) {
             thumbPix = videoInfo.icon->pixmap(280, 420);
             if (!thumbPix.isNull()) {
@@ -207,19 +207,19 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
             }
         }
         
-        // 生成随机时间
+        // Generate random time
         QDateTime t = QDateTime::currentDateTime().addSecs(-i * (QRandomGenerator::global()->bounded(300) + 300));
         
         // Avatar path left empty so FriendItem can generate a colored placeholder
         QString avatarPath = "";
         
-        // 计算视频索引（循环使用）
+        // Calculate video index (reuse cyclically)
         int videoIndex = i % videos.size();
         
         FriendItem *item = new FriendItem(avatarPath, user, thumbPath, t, videoIndex, copy);
         item->setDayMode(dayMode_ && !highContrastMode_);
         
-        // 如果有缩略图，设置它
+        // If thumbnail exists, set it
         if (hasThumbnail) {
             item->setThumbnail(thumbPix);
         }
@@ -230,14 +230,14 @@ void FriendsPage::initializeWithVideos(const std::vector<TheButtonInfo> &videos)
             emit playVideoRequested(index);
         });
         
-        // 随机生成一些评论（30%的概率）
+        // Randomly generate some comments (30% probability)
         if (QRandomGenerator::global()->bounded(100) < 30) {
             QStringList commenters = {"Alice", "Bob", "Ethan", "Luna", "Olivia", "James", "Lucas", "Sophia", "Emma", "Noah"};
             QStringList comments = {
                 "太棒了！", "Awesome!", "喜欢这个！", "Love it!", "真不错", "Nice!", 
                 "👍", "🔥", "太美了", "Beautiful!", "赞", "Great!"
             };
-            int numComments = QRandomGenerator::global()->bounded(3) + 1; // 1-3条评论
+            int numComments = QRandomGenerator::global()->bounded(3) + 1; // 1-3 comments
             for (int j = 0; j < numComments; ++j) {
                 QString commenter = commenters.at(QRandomGenerator::global()->bounded(commenters.size()));
                 QString comment = comments.at(QRandomGenerator::global()->bounded(comments.size()));
@@ -256,11 +256,11 @@ void FriendsPage::addNewPost(const QString &videoThumb)
     connect(item, &FriendItem::commentRequested, this, &FriendsPage::onCommentRequested);
     listLayout->insertWidget(0, item);
     
-    // 确保新添加的item在布局完成后正确设置缩略图尺寸
-    // 使用多个延迟触发，确保widget已经添加到布局并获得了正确的宽度
+    // Ensure newly added item correctly sets thumbnail size after layout is complete
+    // Use multiple delayed triggers to ensure widget is added to layout and has correct width
     QTimer::singleShot(50, item, [item, this]() {
         if (item && listWidget) {
-            // 强制更新布局
+            // Force update layout
             listWidget->updateGeometry();
             QApplication::processEvents();
         }
@@ -292,7 +292,7 @@ void FriendsPage::onCommentRequested(FriendItem *item)
     if (!ok || text.trimmed().isEmpty()) return;
     item->addComment(text);
     
-    // 语音播报
+    // Voice narration
     NarrationManager::instance().narrate(
         QString::fromUtf8("评论已添加"),
         "Comment added"
@@ -302,12 +302,12 @@ void FriendsPage::onCommentRequested(FriendItem *item)
 void FriendsPage::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    // 使用防抖机制：延迟更新，避免频繁调整布局
+    // Use debounce mechanism: delay update to avoid frequent layout adjustments
     static QTimer *debounceTimer = nullptr;
     if (!debounceTimer) {
         debounceTimer = new QTimer(this);
         debounceTimer->setSingleShot(true);
-        debounceTimer->setInterval(100);  // 100ms防抖
+        debounceTimer->setInterval(100);  // 100ms debounce
         connect(debounceTimer, &QTimer::timeout, this, &FriendsPage::updateResponsiveLayout);
     }
     debounceTimer->stop();
@@ -322,25 +322,25 @@ void FriendsPage::updateResponsiveLayout()
     
     const int pageWidth = width();
     
-    // 缓存上次的宽度，避免不必要的更新
+    // Cache last width to avoid unnecessary updates
     static int lastPageWidth = -1;
     if (lastPageWidth == pageWidth) {
-        return;  // 宽度没有变化，不需要更新
+        return;  // Width hasn't changed, no need to update
     }
     lastPageWidth = pageWidth;
     
-    // 响应式设计：根据页面宽度调整布局
+    // Responsive design: adjust layout based on page width
     if (pageWidth < 600) {
-        // 小屏幕：较小的边距和间距
+        // Small screen: smaller margins and spacing
         listLayout->setContentsMargins(8, 8, 8, 8);
         listLayout->setSpacing(8);
         
-        // 调整主布局边距
+        // Adjust main layout margins
         if (layout()) {
             layout()->setContentsMargins(12, 0, 8, 0);
         }
     } else if (pageWidth < 1000) {
-        // 中等屏幕：标准边距
+        // Medium screen: standard margins
         listLayout->setContentsMargins(12, 12, 12, 12);
         listLayout->setSpacing(12);
         
@@ -348,7 +348,7 @@ void FriendsPage::updateResponsiveLayout()
             layout()->setContentsMargins(20, 0, 12, 0);
         }
     } else {
-        // 大屏幕：固定边距，不再动态调整
+        // Large screen: fixed margins, no longer dynamically adjusted
         listLayout->setContentsMargins(16, 16, 16, 16);
         listLayout->setSpacing(16);
         
@@ -357,13 +357,13 @@ void FriendsPage::updateResponsiveLayout()
         }
     }
     
-    // 通知所有 FriendItem 更新缩略图大小，以适应新的窗口宽度
-    // 使用 QTimer 延迟执行，确保布局调整完成后再更新
+    // Notify all FriendItems to update thumbnail size to adapt to new window width
+    // Use QTimer to delay execution, ensure update after layout adjustment is complete
     QTimer::singleShot(50, this, [this]() {
         if (!listWidget) {
             return;
         }
-        // 查找所有 FriendItem 并更新它们的缩略图大小
+        // Find all FriendItems and update their thumbnail sizes
         QList<FriendItem*> items = listWidget->findChildren<FriendItem*>();
         for (FriendItem *item : items) {
             if (item) {

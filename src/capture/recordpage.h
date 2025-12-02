@@ -15,8 +15,10 @@ public:
     explicit RecordPage(QWidget *parent = nullptr);
 
 signals:
-    void recordingFinished();   // 录制结束后 → 进入发布页
-    void draftSelected(const QString &draftText);  // 选择草稿后 → 进入发布页
+    // After recording ends → go to publish page
+    void recordingFinished();   
+    // After selecting draft → go to publish page
+    void draftSelected(const QString &draftText);  
 
 public:
     static void addDraft(const QString &draftText);  // Helper used by PublishPage to push drafts
@@ -28,8 +30,8 @@ protected:
 private slots:
     void onRecordButtonClicked();
     void onSwitchButtonClicked();
-    void onPauseButtonClicked();   // ★ 新增
-    void onDraftButtonClicked();  // 打开草稿箱
+    void onPauseButtonClicked();   
+    void onDraftButtonClicked();  // Open draft box
 
 private:
     QWidget *phoneFrame;
@@ -39,14 +41,14 @@ private:
     QPushButton *recordButton;
     QPushButton *switchButton;
     QPushButton *pauseButton;
-    QPushButton *draftButton;  // 草稿箱按钮
+    QPushButton *draftButton;  // Draft box button
     bool isPaused = false;
 
 
     QTimer pulseTimer;
     bool isRecording = false;
     bool backIsBlack = true;
-    int pulseState = 0;   // 呼吸灯渐变
+    int pulseState = 0;   // Breathing light gradient
 
     void applyTranslations(AppLanguage lang);
 };

@@ -14,7 +14,7 @@ VideoViewer::VideoViewer(const QString &coverPath, QWidget *parent)
     videoLabel->setScaledContents(true);
     videoLabel->setPixmap(QPixmap(coverPath).scaled(900, 1200, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
 
-    // --- 按钮 ---
+    // --- Buttons ---
     closeBtn = new QPushButton(" ✖ ");
     likeBtn = new QPushButton(" ❤ 0");
     shareBtn = new QPushButton(" 🔁 0");
@@ -29,7 +29,7 @@ VideoViewer::VideoViewer(const QString &coverPath, QWidget *parent)
     btnLayout->addStretch();
     btnLayout->addWidget(closeBtn);
 
-    // --- 总布局 ---
+    // --- Main layout ---
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(videoLabel, 1);
     mainLayout->addLayout(btnLayout);

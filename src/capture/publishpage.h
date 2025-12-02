@@ -17,7 +17,7 @@ class PublishPage : public QWidget
     Q_OBJECT
 public:
     explicit PublishPage(QWidget *parent = nullptr);
-    void loadDraft(const QString &draftText);  // 加载草稿内容
+    void loadDraft(const QString &draftText);  // Load draft content
 
 signals:
     void backToRecord();
@@ -71,7 +71,7 @@ private:
     QStringList selectedFriends;
     QString privacySelection = "all";
     QString userText = "";
-    QString draftBuffer;       // ★ 新增
+    QString draftBuffer;       // New addition
     bool blockTextSignal = false;
     QSlider *volumeSlider = nullptr;
     QLabel *volumeLabel = nullptr;

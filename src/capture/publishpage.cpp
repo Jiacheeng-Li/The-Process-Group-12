@@ -6,7 +6,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QCheckBox>
-#include <QRadioButton>      // <<< ★ 新增的头文件（解决你的报错）
+#include <QRadioButton>      // New header file (fixes the error)
 #include <QRegExp>
 #include <QStringLiteral>
 #include "recordpage.h"
@@ -86,7 +86,7 @@ PublishPage::PublishPage(QWidget *parent)
 
         if (msgBox.clickedButton() == saveDraft) {
             draftBuffer = inputBar->text();
-            // 保存草稿到草稿箱
+            // Save draft to draft box
             RecordPage::addDraft(draftBuffer);
             QMessageBox::information(
                 this,
@@ -128,7 +128,7 @@ PublishPage::PublishPage(QWidget *parent)
     btn4->setIcon(QIcon(":/icons/icons/location_on.svg"));
     btn4->setIconSize(QSize(28, 28));
     
-    // 美化按钮样式 - 图标+文字，类似share_to_friends的效果
+    // Beautify button style - icon + text, similar to share_to_friends effect
     QString buttonStyle = 
         "QPushButton {"
         "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(108,173,255,0.25), stop:1 rgba(58,125,255,0.35));"
@@ -152,7 +152,7 @@ PublishPage::PublishPage(QWidget *parent)
     btn3->setStyleSheet(buttonStyle);
     btn4->setStyleSheet(buttonStyle);
     
-    // 美化顶部按钮 - 使用混合配色
+    // Beautify top buttons - use mixed color scheme
     QString topButtonStyle =
         "QPushButton {"
         "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(191,191,191,0.2), stop:1 rgba(108,173,255,0.3));"
@@ -239,7 +239,7 @@ void PublishPage::onUserTyped()
     updateInputBar();
 }
 
-/* ------------ Tag picker (multi-select) ------------ */
+
 void PublishPage::onTagClicked()
 {
     if (!panelTag) {
@@ -303,7 +303,7 @@ void PublishPage::onTagClicked()
     panelTag->showPanel();
 }
 
-/* ------------ Mention picker (multi-select) ------------ */
+
 void PublishPage::onMentionClicked()
 {
     if (!panelMention) {
@@ -359,7 +359,7 @@ void PublishPage::onMentionClicked()
     panelMention->showPanel();
 }
 
-/* ------------ Visibility (single-select) ------------ */
+
 void PublishPage::onPrivacyClicked()
 {
     if (!panelPrivacy) {
@@ -369,7 +369,7 @@ void PublishPage::onPrivacyClicked()
 
         QWidget *box = new QWidget;
         QVBoxLayout *lay = new QVBoxLayout(box);
-        lay->setSpacing(20);  // 适中的行间距，保持清晰但不占用过多空间
+        lay->setSpacing(20);  // appropriate interval
         lay->setContentsMargins(8, 8, 8, 8);
         for (auto &opt : privacyOptions_){
             QRadioButton *rb = new QRadioButton(opt.en,box);
@@ -411,7 +411,6 @@ void PublishPage::onPrivacyClicked()
     panelPrivacy->showPanel();
 }
 
-/* ------------ Location toggle ------------ */
 void PublishPage::onLocationClicked()
 {
     isLocationOn = !isLocationOn;
@@ -419,7 +418,7 @@ void PublishPage::onLocationClicked()
                                      : ":/icons/icons/location_off.svg"));
 }
 
-/* ------------ Share panel ------------ */
+
 void PublishPage::onShareClicked()
 {
     if (!panelShare) {
@@ -431,7 +430,7 @@ void PublishPage::onShareClicked()
         QGridLayout *grid = new QGridLayout(box);
         grid->setContentsMargins(10, 10, 10, 10);
         grid->setHorizontalSpacing(16);
-        grid->setVerticalSpacing(24);  // 适中的行间距，保持清晰但不占用过多空间
+        grid->setVerticalSpacing(24);  
         QStringList list = {"Instagram","Tinder","X (Twitter)","Telegram","微信","B站"};
 
         for (int i = 0; i < list.size(); ++i) {
@@ -469,8 +468,8 @@ void PublishPage::onShareClicked()
             grid->addWidget(ck, row, col);
         }
 
-        QPushButton *ok = new QPushButton("确定转发");
-        QPushButton *cancel = new QPushButton("取消");
+        QPushButton *ok = new QPushButton("Confirm Share");
+        QPushButton *cancel = new QPushButton("Cancel");
         ok->setStyleSheet(
             "QPushButton {"
             "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #FF4F70, stop:0.5 #6CADFF, stop:1 #3A7DFF);"
@@ -511,7 +510,7 @@ void PublishPage::onShareClicked()
                                                  QStringLiteral("Shared to other platforms!")));
             panelShare->hidePanel();
         });
-        // 按钮放在最后一行，跨两列
+        // Place buttons on the last row, spanning two columns
         grid->addWidget(ok, (list.size() + 1) / 2, 0, 1, 2);
         grid->addWidget(cancel, (list.size() + 1) / 2 + 1, 0, 1, 2);
 
@@ -521,7 +520,7 @@ void PublishPage::onShareClicked()
     panelShare->showPanel();
 }
 
-/* ------------ Volume panel ------------ */
+
 void PublishPage::onVolumeClicked()
 {
     if (!panelVolume) {
@@ -596,11 +595,12 @@ void PublishPage::resizeEvent(QResizeEvent *event)
     int y = frameTop + frameH + gap;
     y = qMin(y, H - bottomMargin - tagH - gap - 54);
 
-    // Utility buttons (tag/friend/privacy/loc) – 始终 4 个按钮在一行，严格对齐 frame 左右
+    // Utility buttons (tag/friend/privacy/loc) – Always 4 buttons in one row, strictly aligned with frame left and right
     const int tagSpacing = 16;
     const int tagCols = 4;
     int eachTagW = (frameW - tagSpacing * (tagCols - 1)) / tagCols;
-    eachTagW = qMax(110, eachTagW); // 稍微放小一点以适配窄屏
+    // Slightly smaller to fit narrow screens
+    eachTagW = qMax(110, eachTagW); 
 
     int tagRowX = frameLeft;
     btn1->setGeometry(tagRowX, y, eachTagW, tagH);
@@ -610,24 +610,24 @@ void PublishPage::resizeEvent(QResizeEvent *event)
 
     y += tagH + gap;
 
-    // 发送按钮
+    // Send button
     sendButton->setGeometry(frameLeft, y, frameW, 54);
 }
 
 void PublishPage::loadDraft(const QString &draftText)
 {
-    // 清空当前内容
+    // Clear current content
     selectedTags.clear();
     selectedFriends.clear();
     userText = "";
     draftBuffer = "";
     
-    // 加载草稿文本
+    // Load draft text
     blockTextSignal = true;
     inputBar->setText(draftText);
     blockTextSignal = false;
     
-    // 解析草稿中的标签和好友（简单实现）
+    // Parse tags and friends from draft (simple implementation)
     QString text = draftText;
     // Extract hashtags (#tag)
     QRegExp tagRegex("#(\\w+)");

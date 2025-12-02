@@ -32,7 +32,7 @@
 namespace {
 } // namespace
 
-// 从图标创建圆形头像
+// Create circular avatar from icon
 QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
     QPixmap base(size);
     base.fill(Qt::transparent);
@@ -54,7 +54,7 @@ QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
     return base;
 }
 
-// 获取用户头像路径（与FriendItem中的函数相同）
+// Get user avatar path (same function as in FriendItem)
 static QString getAvatarPathForUser(const QString &username)
 {
     // Map the first five demo users to avatar files 1-5.jpg
@@ -96,20 +96,20 @@ static QString getAvatarPathForUser(const QString &username)
     return "";
 }
 
-// 从路径创建圆形头像
+// Create circular avatar from path
 QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius) {
     QPixmap base(size);
     base.fill(Qt::transparent);
 
     QPixmap source;
     if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
-        // 使用 QImageReader 确保正确加载 JPG/PNG 等格式
+        // Use QImageReader to ensure correct loading of JPG/PNG formats
         QImageReader reader(imagePath);
         QImage image = reader.read();
         if (!image.isNull()) {
             source = QPixmap::fromImage(image);
         } else {
-            // 如果 QImageReader 失败，尝试直接加载
+            // If QImageReader fails, try direct loading
             source = QPixmap(imagePath);
         }
     }
@@ -134,7 +134,7 @@ QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius)
     return base;
 }
 
-// 彩色头像环（仿 Instagram），使用项目配色做渐变
+// Colored avatar ring (Instagram-style), use project color scheme for gradient
 class AvatarRingWidget : public QWidget {
 public:
     explicit AvatarRingWidget(const QIcon *icon, QWidget *parent = nullptr)
@@ -148,7 +148,7 @@ public:
     
     void setAvatarFromPath(const QString &avatarPath) {
         avatarPath_ = avatarPath;
-        icon_.reset(); // 清除icon，使用路径
+        icon_.reset(); // Clear icon, use path
         update(); // 触发重绘
     }
 
@@ -161,26 +161,26 @@ protected:
 
         QRectF outerRect = rect().adjusted(1, 1, -1, -1);
 
-        // 外圈：多色渐变环
+        // Outer ring: multi-color gradient ring
         QConicalGradient grad(outerRect.center(), 0);
-        // 多段渐变，让颜色衔接更顺滑，尽量减少纯黑
-        grad.setColorAt(0.00, QColor("#FF4F70"));   // 粉
-        grad.setColorAt(0.18, QColor("#FF8AA0"));   // 粉 → 亮一点
-        grad.setColorAt(0.32, QColor("#6CADFF"));   // 淡蓝
-        grad.setColorAt(0.46, QColor("#3A7DFF"));   // 深蓝
-        grad.setColorAt(0.60, QColor("#BFBFBF"));   // 银灰
-        grad.setColorAt(0.74, QColor("#6CADFF"));   // 回到淡蓝
-        grad.setColorAt(0.88, QColor("#FF8AA0"));   // 再次粉色过渡
-        grad.setColorAt(1.00, QColor("#FF4F70"));   // 闭环粉
+        // Multi-segment gradient for smoother color transitions, minimize pure black
+        grad.setColorAt(0.00, QColor("#FF4F70"));   // Pink
+        grad.setColorAt(0.18, QColor("#FF8AA0"));   // Pink → brighter
+        grad.setColorAt(0.32, QColor("#6CADFF"));   // Light blue
+        grad.setColorAt(0.46, QColor("#3A7DFF"));   // Dark blue
+        grad.setColorAt(0.60, QColor("#BFBFBF"));   // Silver gray
+        grad.setColorAt(0.74, QColor("#6CADFF"));   // Back to light blue
+        grad.setColorAt(0.88, QColor("#FF8AA0"));   // Pink transition again
+        grad.setColorAt(1.00, QColor("#FF4F70"));   // Close loop pink
 
         painter.setPen(Qt::NoPen);
         painter.setBrush(grad);
         painter.drawEllipse(outerRect);
 
-        // 内圈：深色背景 + 头像
-        const int ringWidth = 5;  // 加粗色环
+        // Inner ring: dark background + avatar
+        const int ringWidth = 5;  // Thicker color ring
         QRectF innerRect = outerRect.adjusted(ringWidth, ringWidth, -ringWidth, -ringWidth);
-        // 内圈背景改成深蓝，而不是纯黑
+        // Change inner ring background to dark blue instead of pure black
         painter.setBrush(QColor("#050b1e"));
         painter.drawEllipse(innerRect);
 
@@ -193,7 +193,7 @@ protected:
                             innerRect.center().y() - avatarPixmap.height() / 2.0);
             painter.drawPixmap(topLeft, avatarPixmap);
         } else if (!avatarPath_.isEmpty()) {
-            // 从路径加载头像
+            // Load avatar from path
             const int d = static_cast<int>(qMin(innerRect.width(), innerRect.height()));
             QSize avatarSize(d, d);
             QPixmap avatarPixmap = roundedFromPath(avatarPath_, avatarSize, d / 2);
@@ -666,10 +666,10 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     scrollArea->setWidget(contentWidget);
     rootLayout->addWidget(scrollArea);
     
-    // 连接滚动条信号，使色环随滚动变化
+    // Connect scrollbar signal to make color ring change with scrolling
     QObject::connect(scrollArea->verticalScrollBar(), &QAbstractSlider::valueChanged, 
                      [this, scrollArea](int value) {
-        // 将滚动位置转换为角度（0-360度）
+        // Convert scroll position to angle (0-360 degrees)
         const int maxScroll = scrollArea->verticalScrollBar()->maximum();
         if (maxScroll > 0) {
             gradientAngle_ = (static_cast<qreal>(value) / maxScroll) * 360.0;
@@ -688,7 +688,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     identityRow_ = new QHBoxLayout();
     identityRow_->setSpacing(20);
 
-    // 使用彩色环头像
+    // Use colored ring avatar
     const QIcon *avatarIcon = videos.empty() ? nullptr : videos.front().icon;
     avatarWidget_ = new AvatarRingWidget(avatarIcon, heroCard);
 
@@ -706,7 +706,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     followBtn->setObjectName("primaryCta");
     followBtn->setCheckable(true);
     followBtn->setCursor(Qt::PointingHandCursor);
-    // 添加图标（放大一些，更接近 Instagram 风格）
+    // Add icon (make it larger, closer to Instagram style)
     followBtn->setIcon(QIcon(":/icons/icons/follow.svg"));
     followBtn->setIconSize(QSize(34, 34));
     followButton_ = followBtn;
@@ -735,7 +735,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 
     shareButton_ = new QPushButton("Share profile", heroCard);
     shareButton_->setObjectName("secondaryCta");
-    // 添加图标（放大一些）
+    // Add icon (make it larger)
     shareButton_->setIcon(QIcon(":/icons/icons/share_profile.svg"));
     shareButton_->setIconSize(QSize(30, 30));
     ctaRow->addWidget(followBtn);
@@ -802,7 +802,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         QObject::connect(tab, &QPushButton::toggled, this, [this, index = static_cast<int>(spec.mode), &spec](bool checked) {
             if (checked) {
                 setActiveFilter(index);
-                // 语音播报
+                // Voice narration
                 QString zhText, enText;
                 if (index == FilterMode::Grid) {
                     zhText = QString::fromUtf8("网格");
@@ -829,13 +829,13 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     emptyStateLabel_->setWordWrap(true);
     emptyStateLabel_->hide();
 
-    // Profile 网格只展示最新的 8 个视频（例如 n–u），而不是最早的几个
+    // Profile grid only shows latest 8 videos (e.g. n-u), not the earliest ones
     const int total = std::min<int>(videos_.size(), 8);
     gridOrder_.reserve(total);
     draftOrder_.reserve((total + 1) / 2);
     taggedOrder_.reserve(total / 2);
 
-    const int startIndex = static_cast<int>(videos_.size()) - total; // 取最后 total 个
+    const int startIndex = static_cast<int>(videos_.size()) - total; // Take last total items
     for (int offset = 0; offset < total; ++offset) {
         const int idx = startIndex + offset;
         gridOrder_.push_back(idx);
@@ -881,12 +881,12 @@ void ProfilePage::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     
-    // 绘制彩色边框（和Homepage一样）
-    // 外层矩形略微内缩，避免被裁剪
+    // Draw colored border (same as Homepage)
+    // Outer rectangle slightly inset to avoid clipping
     QRectF outerRect = rect().adjusted(3.0, 3.0, -3.0, -3.0);
     
-    // 使用和头像类似的多色渐变做一圈「色环边框」
-    // 渐变角度随滚动位置变化
+    // Use multi-color gradient similar to avatar to create a "color ring border"
+    // Gradient angle changes with scroll position
     QConicalGradient grad(outerRect.center(), gradientAngle_);
     grad.setColorAt(0.00, QColor("#FF4F70"));
     grad.setColorAt(0.18, QColor("#FF8AA0"));
@@ -984,7 +984,7 @@ void ProfilePage::rebuildGrid() {
         }
         QObject::connect(tile, &QPushButton::clicked, this, [this, index]() {
             emit playVideoRequested(index);
-            // 语音播报
+            // Voice narration
             NarrationManager::instance().narrate(
                 QString::fromUtf8("播放视频 %1").arg(index + 1),
                 QString("Play video %1").arg(index + 1)
@@ -1048,7 +1048,7 @@ void ProfilePage::setLanguage(AppLanguage language) {
     }
     language_ = language;
     rebuildStrings();
-    // 语音播报语言切换
+    // Voice narration language switch
     NarrationManager::instance().setLanguage(language);
 }
 
@@ -1136,7 +1136,7 @@ void ProfilePage::updateStyleSheet() {
         setStyleSheet(defaultStyleSheet_);
     }
 
-    // 根据模式切换高对比图标：夜间/高对比用 *1.svg，日间用默认
+    // Switch high contrast icons based on mode: night/high contrast use *1.svg, day mode uses default
     const bool useAltIcons = highContrastMode_ || !dayMode_;
     if (followButton_) {
         followButton_->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/follow1.svg")
@@ -1151,7 +1151,7 @@ void ProfilePage::updateStyleSheet() {
 void ProfilePage::setUserInfo(const QString &username, const QString &displayName, const QString &bio, const QString &avatarPath) {
     currentUsername_ = username;
     
-    // 更新头像
+    // Update avatar
     if (avatarWidget_) {
         QString finalAvatarPath = avatarPath;
         if (finalAvatarPath.isEmpty() && !username.isEmpty()) {
@@ -1183,7 +1183,7 @@ void ProfilePage::setUserInfo(const QString &username, const QString &displayNam
             displayNameLabel_->setText(displayNameText_);
         }
     } else if (!username.isEmpty()) {
-        // 如果没有提供displayName，使用username的首字母大写
+        // If displayName not provided, use capitalized first letter of username
         QString capitalized = username;
         if (!capitalized.isEmpty()) {
             capitalized[0] = capitalized[0].toUpper();
@@ -1200,22 +1200,22 @@ void ProfilePage::setUserInfo(const QString &username, const QString &displayNam
             bioLabel_->setText(bioText_);
         }
     } else if (!username.isEmpty()) {
-        // 生成默认bio
+        // Generate default bio
         bioText_ = QString("Welcome to %1's profile!").arg(username);
         if (bioLabel_) {
             bioLabel_->setText(bioText_);
         }
     }
     
-    // 为不同用户生成不同的统计数据
+    // Generate different statistics for different users
     if (!username.isEmpty() && !statLabelWidgets_.empty()) {
-        // 根据用户名生成不同的统计数据（使用哈希确保一致性）
+        // Generate different statistics based on username (use hash to ensure consistency)
         uint hash = qHash(username);
         int following = 200 + (hash % 500);  // 200-700
         int followers = 1000 + ((hash * 3) % 20000);  // 1K-21K
         int likes = 50000 + ((hash * 7) % 950000);  // 50K-1M
         
-        // 格式化数字
+        // Format numbers
         QString followingStr = QString::number(following);
         QString followersStr;
         if (followers >= 1000) {
@@ -1232,7 +1232,7 @@ void ProfilePage::setUserInfo(const QString &username, const QString &displayNam
             likesStr = QString::number(likes);
         }
         
-        // 更新统计数据标签
+        // Update statistics labels
         for (auto &pair : statLabelWidgets_) {
             QString key = pair.second;
             if (key == "stat.following" && pair.first) {

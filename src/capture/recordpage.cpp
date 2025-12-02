@@ -180,7 +180,7 @@ void RecordPage::onRecordButtonClicked()
     {
         isRecording = true;
         pulseTimer.start();
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("开始录制"),
             "Recording started"
@@ -190,7 +190,7 @@ void RecordPage::onRecordButtonClicked()
     {
         isRecording = false;
         pulseTimer.stop();
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("停止录制"),
             "Recording stopped"
@@ -213,14 +213,14 @@ void RecordPage::onSwitchButtonClicked()
         frontCamera->setStyleSheet(
             "background-color:#999; border:2px solid white; border-radius:8px;"
             );
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("切换到后置摄像头"),
             "Switched to back camera"
             );
     } else {
         backCamera->setStyleSheet("background-color:#999;");
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("切换到前置摄像头"),
             "Switched to front camera"
@@ -240,14 +240,14 @@ void RecordPage::onPauseButtonClicked()
         pulseTimer.stop();
         recordButton->setStyleSheet("background:red;border-radius:30px;border:3px solid #6CADFF;");
         pauseButton->setIcon(QIcon(":/icons/icons/pause.svg"));   // Show pause icon while paused
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("暂停录制"),
             "Recording paused"
         );
     } else {
         pulseTimer.start();
-        // 语音播报
+        // Voice narration
         NarrationManager::instance().narrate(
             QString::fromUtf8("继续录制"),
             "Recording resumed"
@@ -288,7 +288,7 @@ void RecordPage::onDraftButtonClicked()
         return;
     }
 
-    // 创建草稿选择对话框
+    // Create draft selection dialog
     QDialog *dialog = new QDialog(this);
     dialog->setWindowTitle(pick("选择草稿", "Select a draft"));
     dialog->setModal(true);

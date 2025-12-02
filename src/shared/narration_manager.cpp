@@ -23,7 +23,7 @@ NarrationManager::~NarrationManager() {
 
 void NarrationManager::initialize(QObject *parent) {
     if (speech_) {
-        return; // 已经初始化
+        return; // Already initialized
     }
     
     try {
