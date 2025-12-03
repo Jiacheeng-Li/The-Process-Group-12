@@ -145,13 +145,17 @@ void RecordPage::resizeEvent(QResizeEvent *event)
     int margin = qMax(10, frameW / 40);
     backCamera->setGeometry(margin, margin, frameW - 2 * margin, frameH - 2 * margin);
 
-    // Responsive sizing for the front camera overlay
-    int fw = qMax(80, (frameW - 2 * margin) / 4);  // Minimum 80px, capped at one quarter of frame width
-    int fh = static_cast<int>(fw * 4.0 / 3.0);  // Keep a 4:3 ratio
-    int maxFh = (frameH - 2 * margin) / 3;  // Cap height at one-third of the frame
-    if (fh > maxFh) {
-        fh = maxFh;
-        fw = static_cast<int>(fh * 3.0 / 4.0);
+    // Responsive sizing for the front camera overlay (match main aspect ratio)
+    const double camAspect = aspect; // width / height (9:16)
+    int frontMaxWidth = qMax(80, (frameW - 2 * margin) / 4);
+    int frontMaxHeight = qMax(120, (frameH - 2 * margin) / 3);
+    int widthFromHeight = static_cast<int>(frontMaxHeight * camAspect);
+    int heightFromWidth = static_cast<int>(frontMaxWidth / camAspect);
+    int fw = frontMaxWidth;
+    int fh = heightFromWidth;
+    if (heightFromWidth > frontMaxHeight) {
+        fw = widthFromHeight;
+        fh = frontMaxHeight;
     }
     frontCamera->setGeometry(16, 16, fw, fh);
 
@@ -275,7 +279,7 @@ void RecordPage::onDraftButtonClicked()
         return langMgr.pick(zh, en);
     };
 
-    // 语音播报
+    // voice narration
     NarrationManager::instance().narrate(
         QString::fromUtf8("打开草稿箱"),
         "Open drafts"

@@ -6,38 +6,37 @@ CONFIG += c++11
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-# 主函数
+# Main entry point source
 SOURCES += \
-    home/tomeo.cpp
+    home/Antipode.cpp
 
-# 明确告诉 MOC 处理 tomeo.cpp（因为其中包含 Q_OBJECT 类）
-# MOC 会自动生成 moc_tomeo.cpp
+# Explicitly tell MOC to process Antipode.cpp (contains Q_OBJECT classes)
+# MOC will generate moc_Antipode.cpp automatically
 
-# Capture 文件夹（录制和发布）
+# Capture module sources (record & publish flow)
 SOURCES += \
     capture/recordpage.cpp \
     capture/publishpage.cpp \
     capture/popuppanel.cpp
 
-# Friends 文件夹（朋友圈）
+# Friends module sources (social feed)
 SOURCES += \
     friends/friendspage.cpp \
     friends/frienditem.cpp \
     friends/video_viewer.cpp
 
-# Home 文件夹
-# (主函数已在上面添加)
+# Home module (main window already included above)
 
-# Player 文件夹（播放器组件）
+# Player components (shared playback controls)
 SOURCES += \
     player/the_player.cpp \
     player/the_button.cpp
 
-# Profile 文件夹（个人主页）
+# Profile module (user profile page)
 SOURCES += \
     profile/profile_page.cpp
 
-# Chat 文件夹（聊天页面）
+# Chat module (messaging page)
 SOURCES += \
     chat/chat_page.cpp
 
@@ -46,7 +45,7 @@ SOURCES += \
     shared/language_manager.cpp \
     shared/narration_manager.cpp
 
-# 头文件
+# Header files
 HEADERS += \
     capture/recordpage.h \
     capture/publishpage.h \
@@ -61,7 +60,7 @@ HEADERS += \
     shared/language_manager.h \
     shared/narration_manager.h
 
-# 包含路径设置（相对于 src 目录）
+# Include paths (relative to src/)
 INCLUDEPATH += \
     . \
     home \
@@ -72,7 +71,7 @@ INCLUDEPATH += \
     chat \
     shared
 
-# 资源文件
+# Qt resource collections
 RESOURCES += \
     capture/resources.qrc \
     home/home.qrc

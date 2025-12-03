@@ -149,7 +149,7 @@ public:
     void setAvatarFromPath(const QString &avatarPath) {
         avatarPath_ = avatarPath;
         icon_.reset(); // Clear icon, use path
-        update(); // 触发重绘
+        update(); // trigger redraw
     }
 
 protected:
@@ -376,28 +376,22 @@ QString dayModeProfileStyle() {
         "QLabel#statValue { font-size: 20px; font-weight: 700; color: #0c1b33; }"
         "QLabel#statLabel { font-size: 12px; text-transform: uppercase; color: #5f6d8c; letter-spacing: 0.2em; font-weight: 600; }"
         "QPushButton#primaryCta {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-        "    stop:0 #3A7DFF, "
-        "    stop:0.5 #6CADFF, "
-        "    stop:1 #3A7DFF);"
+        "  background-color: transparent;"
+        "  color: #2d3a4f;"
+        "  border: 2px solid rgba(108,173,255,0.6);"
         "  border-radius: 22px;"
         "  padding: 12px 26px;"
-        "  border: 2px solid rgba(108,173,255,0.8);"
-        "  color: white;"
         "  font-weight: 700;"
         "  text-align: left;"
         "}"
         "QPushButton#primaryCta:hover {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-        "    stop:0 #6CADFF, "
-        "    stop:0.5 #3A7DFF, "
-        "    stop:1 #6CADFF);"
-        "  border-color: rgba(108,173,255,1.0);"
+        "  background-color: rgba(108,173,255,0.15);"
+        "  border-color: rgba(108,173,255,0.9);"
         "}"
         "QPushButton#primaryCta:checked {"
-        "  background: rgba(200,220,255,0.85);"
-        "  border: 2px solid rgba(76,162,255,0.8);"
-        "  color: #1a3d7f;"
+        "  background-color: rgba(108,173,255,0.22);"
+        "  border-color: rgba(76,162,255,0.9);"
+        "  color: #0c1b33;"
         "}"
         "QPushButton#secondaryCta {"
         "  background-color: transparent;"
@@ -676,7 +670,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         } else {
             gradientAngle_ = 0.0;
         }
-        update(); // 触发重绘
+        update(); // trigger redraw
     });
 
     auto *heroCard = new QFrame(contentShell);
@@ -712,7 +706,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     followButton_ = followBtn;
     QObject::connect(followBtn, &QPushButton::toggled, this, [this](bool checked) {
         applyFollowState(checked);
-        // 语音播报
+        // voice narration
         if (checked) {
             NarrationManager::instance().narrate(
                 QString::fromUtf8("已关注"),
