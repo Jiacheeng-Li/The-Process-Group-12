@@ -137,7 +137,7 @@ Recommended version: **Qt 5.15.2** (with Multimedia support)
 
 ### 2. Clone the repository
 ```
-git clone https://github.com/<your-team>/DayDreamNight.git
+git clone https://github.com/Jiacheeng-Li/The-Process-Group-12
 ```
 
 ### 3. Open in Qt Creator
@@ -197,6 +197,7 @@ sprint2-prototype
 ```
 v1.0-sprint1
 v2.0-sprint2
+v3.0-sprint3
 ```
 
 ---
@@ -207,7 +208,7 @@ v2.0-sprint2
 |--------|------|
 | Sprint 1 | UI prototyping, basic framework, MVP pages |
 | Sprint 2 | UI implementation, interactions, i18n & accessibility |
-| Sprint 3 | Friends & Chat, external evaluation, feedback integration |
+| Sprint 3 | Accessibility, internationalisation, and a unified UI experience |
 | Final | Showcase video + full report |
 
 ---

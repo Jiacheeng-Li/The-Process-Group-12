@@ -1,0 +1,83 @@
+1
+00:00:00,000 --> 00:00:04,000
+Have you ever wondered what life looks like on the far side of the Earth?
+
+2
+00:00:04,000 --> 00:00:08,000
+Welcome to Antipode: DayDreamNight—connecting people across day and night.
+
+3
+00:00:08,000 --> 00:00:12,000
+Inspired by antipodes—two places directly opposite each other—Antipode brings distant hemispheres together.
+
+4
+00:00:12,000 --> 00:00:17,000
+On the Home feed, each video captures a real moment from another part of the world, with a switchable Day–Night mode.
+
+5
+00:00:17,000 --> 00:00:21,000
+Navigation is intuitive: swipe left to skip and swipe right to appreciate and open a creator’s profile.
+
+6
+00:00:21,000 --> 00:00:25,000
+Swipe up or down to move between moments—traveling across stories with ease.
+
+7
+00:00:25,000 --> 00:00:29,000
+Creating your own moment is just as seamless.
+
+8
+00:00:29,000 --> 00:00:32,000
+Switch cameras, record, pause, or save drafts effortlessly.
+
+9
+00:00:32,000 --> 00:00:36,000
+Add text, tags, and share your perspective with the world.
+
+10
+00:00:36,000 --> 00:00:40,000
+Stay connected through your Friends feed and expressive user profiles.
+
+11
+00:00:40,000 --> 00:00:44,000
+Chat brings conversations to life with clear, modern messaging.
+
+12
+00:00:44,000 --> 00:00:48,000
+On the Profile page, users can explore creators through clean galleries of grids, drafts, and tagged videos.
+
+13
+00:00:48,000 --> 00:00:51,000
+And to ensure everyone can enjoy the experience…
+
+14
+00:00:51,000 --> 00:00:55,000
+Antipode supports diverse viewing needs with screen narration, subtitles, and high-contrast mode.
+
+15
+00:00:55,000 --> 00:00:59,000
+Keyboard controls make navigation easy on desktop with simple arrow-key shortcuts.
+
+16
+00:00:59,000 --> 00:01:03,000
+Users can fine-tune playback with adjustable brightness, contrast, saturation, and speed.
+
+17
+00:01:03,000 --> 00:01:07,000
+We welcome users from every corner of the world.
+
+18
+00:01:07,000 --> 00:01:11,000
+The interface and subtitles can switch languages—English or Chinese—for a familiar, comfortable experience.
+
+19
+00:01:11,000 --> 00:01:16,000
+Antipode opens a new way to experience life across the globe—turning everyday stories into global connections.
+
+20
+00:01:16,000 --> 00:01:21,000
+Our interactive prototype is complete and ready for presentation.
+
+21
+00:01:21,000 --> 00:01:24,000
+Thank you for watching.
