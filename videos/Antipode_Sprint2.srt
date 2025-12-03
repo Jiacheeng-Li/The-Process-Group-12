@@ -1,85 +1,85 @@
 1
-00:00:27,900 --> 00:00:31,300
-Now, let's look at the updated Sprint 2 interfaces.
-
-2
-00:00:31,300 --> 00:00:35,600
-Our Home page now supports smooth playback, 
-reactions, and quick switching.
-
-3
-00:00:35,600 --> 00:00:39,200
-The Friends page lets users view friends' posts and interact.
-
-4
-00:00:39,200 --> 00:00:43,100
-The Capture page supports camera switching, 
-draft preparation and so on.
-
-5
-00:00:43,100 --> 00:00:47,000
-After recording, users can add tags, and save before posting.
-
-6
-00:00:47,000 --> 00:00:51,100
-The Chat page provides a cleaner layout for messaging, and group conversations.
-
-7
-00:00:51,100 --> 00:00:57,066
-The Profile page unifies styling and presents replays, 
-tagged videos, and activity clearly
-
-8
-00:00:57,066 --> 00:01:02,566
-We used GitHub with feature branches to manage version control
-and coordinate collaborative development.
-
-9
-00:01:02,566 --> 00:01:08,500
-After sprint 2, we exchanged feedback with another international dev group via soffline demo and a short questionnaire. 
-
-10
-00:01:08,500 --> 00:01:13,766
-These results highlighted gaps in internationalisation, accessibility, and UI styling.
-
-11
-00:01:14,000 --> 00:01:19,400
-In Sprint 3, we will focus on improving them and completing e
-the remaining core interactions.
-
-12
 00:00:00,233 --> 00:00:01,900
 Welcome to Antipode: DayDreamNight.
 
-13
+2
 00:00:01,900 --> 00:00:04,200
 This is our Sprint 2 Iteration Overview.
 
-14
+3
 00:00:04,200 --> 00:00:09,433
 After Sprint 1, we conducted a heuristic evaluation
  to analyse usability issues
 
-15
+4
 00:00:09,433 --> 00:00:13,333
 Based on these findings, 
 we updated our Gantt chart and Kanban board
 
-16
+5
 00:00:13,333 --> 00:00:16,333
 to realign the priorities and workload for Sprint 2 --
 
-17
+6
 00:00:16,333 --> 00:00:21,000
 focusing on page integration, feature updates, 
 and unified UI design.
 
-18
+7
 00:00:21,000 --> 00:00:25,100
 To leverage each member's strengths, 
 Ziyi shifted to redesigning the Home page,
 
-19
+8
 00:00:25,100 --> 00:00:27,900
  while Na shifted toward ethics and  testing.
+
+9
+00:00:27,900 --> 00:00:31,300
+Now, let's look at the updated Sprint 2 interfaces.
+
+10
+00:00:31,300 --> 00:00:35,600
+Our Home page now supports smooth playback, 
+reactions, and quick switching.
+
+11
+00:00:35,600 --> 00:00:39,200
+The Friends page lets users view friends' posts and interact.
+
+12
+00:00:39,200 --> 00:00:43,100
+The Capture page supports camera switching, 
+draft preparation and so on.
+
+13
+00:00:43,100 --> 00:00:47,000
+After recording, users can add tags, and save before posting.
+
+14
+00:00:47,000 --> 00:00:51,100
+The Chat page provides a cleaner layout for messaging, and group conversations.
+
+15
+00:00:51,100 --> 00:00:57,066
+The Profile page unifies styling and presents replays, 
+tagged videos, and activity clearly
+
+16
+00:00:57,066 --> 00:01:02,566
+We used GitHub with feature branches to manage version control
+and coordinate collaborative development.
+
+17
+00:01:02,566 --> 00:01:08,500
+After sprint 2, we exchanged feedback with another international dev group via soffline demo and a short questionnaire. 
+
+18
+00:01:08,500 --> 00:01:13,766
+These results highlighted gaps in internationalisation, accessibility, and UI styling.
+
+19
+00:01:14,000 --> 00:01:19,400
+In Sprint 3, we will focus on improving them and completing e
+the remaining core interactions.
 
