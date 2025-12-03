@@ -19,6 +19,7 @@ This project follows **three Agile development sprints**, including prototyping,
 - [Core Concept](#-core-concept)
 - [Feature Highlights](#-feature-highlights)
 - [App Structure](#-app-structure--five-navigation-pages)
+- [Sprint Releases](#-sprint-releases)
 - [Project Architecture](#-project-architecture)
 - [Running Locally](#-running-locally)
 - [Troubleshooting](#-troubleshooting)
@@ -42,6 +43,14 @@ This project follows **three Agile development sprints**, including prototyping,
 - **Accessibility surfaces** – global subtitles toggle, high-contrast palettes, narration cues, and larger hit targets on critical controls.  
 - **Procedural social data** – Friends and Profile pages fabricate believable posts, avatars, captions, and stats so the UI always feels populated.  
 - **Stacked navigation shell** – `home/Antipode.cpp` wires all five tabs into one `QStackedWidget` with shared settings dialogs and state.  
+
+---
+
+# 🚀 Sprint Releases
+
+- **Sprint 3 (v3.0)** – [Release tag](https://github.com/Jiacheeng-Li/The-Process-Group-12/releases/tag/v3.0-sprint3)  
+- **Sprint 2 (v2.0)** – [Release tag](https://github.com/Jiacheeng-Li/The-Process-Group-12/releases/tag/v2.0-sprint2)  
+- **Sprint 1 (v1.0)** – [Release tag](https://github.com/Jiacheeng-Li/The-Process-Group-12/releases/tag/v1.0-sprint1)  
 
 ---
 
@@ -124,6 +133,29 @@ Profile showcases the user’s identity, stats, filter tabs, and video grid mock
 ---
 
 # 🏗️ Project Architecture
+
+## 🗂️ File Architecture
+
+```
+docs/
+  Ethics and evidence of feedback/
+  sprint1/
+  sprint2/
+  sprint3/
+src/
+  capture/
+  chat/
+  friends/
+  home/
+  player/
+  profile/
+  shared/
+  README.md
+  the.pro
+videos/
+.gitignore
+README.md
+```
 
 ## 📁 Directory Structure
 
@@ -316,11 +348,16 @@ make
 
 # 📜 License
 
-Academic use only — for XJCO2811 coursework.
+Academic use only — for XJCO2811 coursework. 
+All video and image assets in the prototype have been cleared and authorized for use.
+All interviews complied with ethics requirements; 
+participants were informed and provided written consent.
+
 
 ---
 
 # 👥 Team
 
-Developed by the DayDreamNight team for XJCO2811 User Interfaces course.
+Developed by Group 12 for XJCO2811 User Interfaces course.
 
+Team: Jiacheng Li; Yuanxi Zhong; Na Cao; Ziyi Yan; Xintong Li.

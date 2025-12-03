@@ -1,0 +1,115 @@
+1
+00:00:00,800 --> 00:00:04,166
+Have you ever wondered what life looks like 
+on the far side of the Earth?
+
+2
+00:00:04,600 --> 00:00:06,633
+Welcome to Antipode: DayDreamNight,
+
+3
+00:00:06,633 --> 00:00:11,333
+a breakthrough social video experience that connects people across day and night 
+
+4
+00:00:11,333 --> 00:00:15,866
+Inspired by antipodes— 
+two places on Earth that lie directly opposite each other.
+
+5
+00:00:16,033 --> 00:00:20,266
+On the Home feed, each video captures a real moment from another part of the world,
+
+6
+00:00:20,266 --> 00:00:21,866
+ with a switchable Day–Night mode.
+
+7
+00:00:22,066 --> 00:00:24,433
+Navigation is intuitive and effortless:
+
+8
+00:00:24,566 --> 00:00:25,933
+ swipe left to skip,
+
+9
+00:00:26,033 --> 00:00:28,766
+swipe up or down to move between moments,
+
+10
+00:00:28,766 --> 00:00:32,333
+and swipe right to appreciate and open a creator's profile.
+
+11
+00:00:32,433 --> 00:00:37,233
+You can also interact naturally: emojis, comment, or share videos with friends. 
+
+12
+00:00:37,366 --> 00:00:39,966
+Creating your own moment is just as seamless.
+
+13
+00:00:39,966 --> 00:00:44,066
+Switch cameras, record, pause, or save drafts effortlessly.
+
+14
+00:00:44,066 --> 00:00:47,500
+Add tags, text, and share your perspective with the world.
+
+15
+00:00:47,833 --> 00:00:51,433
+Stay connected through your Friends feed and expressive user profiles.
+
+16
+00:00:51,433 --> 00:00:55,200
+Chat brings conversations to life with clear, modern messaging.
+
+17
+00:00:55,200 --> 00:01:01,266
+On the Profile page, users can explore creators through clean galleries of grids, drafts, and tagged videos.
+
+18
+00:01:01,266 --> 00:01:04,100
+And to ensure everyone can enjoy the experience…
+
+19
+00:01:04,100 --> 00:01:07,700
+Antipode supports diverse viewing needs with 
+screen narration, 
+
+20
+00:01:07,700 --> 00:01:11,433
+subtitles, high-contrast mode and flexible display options.
+
+21
+00:01:11,433 --> 00:01:16,833
+Users can fine-tune playback with adjustable brightness, contrast, saturation, and speed.
+
+22
+00:01:16,866 --> 00:01:20,333
+And the interface adapts naturally to different screen sizes.
+
+23
+00:01:20,333 --> 00:01:25,300
+Keyboard controls make navigation easy on desktop with simple arrow-key shortcuts.
+
+24
+00:01:25,300 --> 00:01:27,800
+We welcome users from every corner of the world.
+
+25
+00:01:27,800 --> 00:01:33,700
+The interface and subtitles can switch languages—English or Chinese—for a familiar, comfortable experience.
+
+26
+00:01:33,700 --> 00:01:39,833
+Antipode opens a new way to experience life across the globe—turning everyday stories into global connections.
+
+27
+00:01:39,833 --> 00:01:43,400
+Our interactive prototype is complete and ready for presentation.
+
+28
+00:01:43,600 --> 00:01:44,966
+Thank you for watching.
+
