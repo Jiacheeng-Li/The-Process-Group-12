@@ -13,9 +13,9 @@ public:
     explicit VideoViewer(const QString &coverPath, QWidget *parent = nullptr);
 
 signals:
-    void closed();      // 关闭窗口
-    void shared();      // 点击分享
-    void liked();       // 点击喜欢
+    void closed();      // Close window
+    void shared();      // Click share
+    void liked();       // Click like
 
 private slots:
     void onLikePressed();

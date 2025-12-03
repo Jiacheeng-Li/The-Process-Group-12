@@ -1,0 +1,12 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- 外圈圆形 -->
+  <circle cx="40" cy="40" r="34" fill="#111318" stroke="#FF4F70" stroke-width="2"></circle>
+
+  <!-- 左侧竖线（上一首标志） -->
+  <rect x="26" y="24" width="4" height="32" fill="#FFFFFF"></rect>
+
+  <!-- 指向左的三角形 -->
+  <polygon points="50,24 32,40 50,56" fill="#FFFFFF"></polygon>
+</svg>

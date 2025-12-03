@@ -1,0 +1,5 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="40" r="34" fill="#FFFFFF" stroke="#FF4F70" stroke-width="2"></circle>
+  <!-- 纸飞机图案 -->
+  <polygon points="26,38 56,24 44,44 56,56" fill="#000000"></polygon>
+</svg>

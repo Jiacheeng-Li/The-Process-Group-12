@@ -1,4 +1,5 @@
 #include "profile_page.h"
+#include "../shared/narration_manager.h"
 
 #include <QButtonGroup>
 #include <QFrame>
@@ -11,10 +12,27 @@
 #include <QSizePolicy>
 #include <QResizeEvent>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QVBoxLayout>
+#include <QConicalGradient>
+#include <QPaintEvent>
+#include <QAbstractSlider>
+#include <QFile>
+#include <QDir>
+#include <QApplication>
+#include <QPixmap>
+#include <QBitmap>
+#include <QHash>
+#include <QImageReader>
+#include <QImage>
+#include <QDebug>
+#include <memory>
 #include <algorithm>
 
 namespace {
+} // namespace
+
+// Create circular avatar from icon
 QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
     QPixmap base(size);
     base.fill(Qt::transparent);
@@ -36,6 +54,161 @@ QPixmap roundedFromIcon(const QIcon *icon, const QSize &size, int radius) {
     return base;
 }
 
+// Get user avatar path (same function as in FriendItem)
+static QString getAvatarPathForUser(const QString &username)
+{
+    // Map the first five demo users to avatar files 1-5.jpg
+    QStringList avatarUsers = {"Alice", "Bob", "Ethan", "Luna", "Olivia"};
+    int index = avatarUsers.indexOf(username);
+    
+    if (index >= 0 && index < 5) {
+        QString fileName = QString::number(index + 1) + ".jpg";
+        QString appDir = QApplication::applicationDirPath();
+        QStringList searchPaths = {
+            QDir::currentPath() + "/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../friends/avatar/" + fileName,
+            QDir::currentPath() + "/src/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../src/friends/avatar/" + fileName,
+            QDir::currentPath() + "/../../src/friends/avatar/" + fileName,
+            appDir + "/friends/avatar/" + fileName,
+            appDir + "/../friends/avatar/" + fileName,
+            appDir + "/../../friends/avatar/" + fileName,
+            appDir + "/../../src/friends/avatar/" + fileName,
+            appDir + "/../../../src/friends/avatar/" + fileName,
+            "friends/avatar/" + fileName,
+            "../friends/avatar/" + fileName,
+            "src/friends/avatar/" + fileName
+        };
+        
+        for (const QString &path : searchPaths) {
+            QString normalizedPath = QDir::cleanPath(path);
+            if (QFile::exists(normalizedPath)) {
+                qDebug() << "[ProfilePage] 找到头像文件:" << normalizedPath << "for user" << username;
+                return normalizedPath;
+            }
+        }
+        
+        qDebug() << "[ProfilePage] 未找到头像文件 for user" << username << "fileName:" << fileName;
+        qDebug() << "[ProfilePage] 当前目录:" << QDir::currentPath();
+        qDebug() << "[ProfilePage] 应用目录:" << appDir;
+    }
+    
+    return "";
+}
+
+// Create circular avatar from path
+QPixmap roundedFromPath(const QString &imagePath, const QSize &size, int radius) {
+    QPixmap base(size);
+    base.fill(Qt::transparent);
+
+    QPixmap source;
+    if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
+        // Use QImageReader to ensure correct loading of JPG/PNG formats
+        QImageReader reader(imagePath);
+        QImage image = reader.read();
+        if (!image.isNull()) {
+            source = QPixmap::fromImage(image);
+        } else {
+            // If QImageReader fails, try direct loading
+            source = QPixmap(imagePath);
+        }
+    }
+
+    if (!source.isNull()) {
+        QPixmap pix = source.scaled(size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPainter painter(&base);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        if (radius == size.width() / 2 && size.width() == size.height()) {
+            path.addEllipse(QRectF(0, 0, size.width(), size.height()));
+        } else {
+            path.addRoundedRect(QRectF(0, 0, size.width(), size.height()), radius, radius);
+        }
+        painter.setClipPath(path);
+        painter.drawPixmap(0, 0, pix);
+        painter.end();
+    } else {
+        base.fill(QColor("#2d2d2d"));
+    }
+
+    return base;
+}
+
+// Colored avatar ring (Instagram-style), use project color scheme for gradient
+class AvatarRingWidget : public QWidget {
+public:
+    explicit AvatarRingWidget(const QIcon *icon, QWidget *parent = nullptr)
+        : QWidget(parent) {
+        if (icon) {
+            icon_.reset(new QIcon(*icon));
+        }
+        setFixedSize(120, 120);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+    }
+    
+    void setAvatarFromPath(const QString &avatarPath) {
+        avatarPath_ = avatarPath;
+        icon_.reset(); // Clear icon, use path
+        update(); // 触发重绘
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) override {
+        Q_UNUSED(event);
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        QRectF outerRect = rect().adjusted(1, 1, -1, -1);
+
+        // Outer ring: multi-color gradient ring
+        QConicalGradient grad(outerRect.center(), 0);
+        // Multi-segment gradient for smoother color transitions, minimize pure black
+        grad.setColorAt(0.00, QColor("#FF4F70"));   // Pink
+        grad.setColorAt(0.18, QColor("#FF8AA0"));   // Pink → brighter
+        grad.setColorAt(0.32, QColor("#6CADFF"));   // Light blue
+        grad.setColorAt(0.46, QColor("#3A7DFF"));   // Dark blue
+        grad.setColorAt(0.60, QColor("#BFBFBF"));   // Silver gray
+        grad.setColorAt(0.74, QColor("#6CADFF"));   // Back to light blue
+        grad.setColorAt(0.88, QColor("#FF8AA0"));   // Pink transition again
+        grad.setColorAt(1.00, QColor("#FF4F70"));   // Close loop pink
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(grad);
+        painter.drawEllipse(outerRect);
+
+        // Inner ring: dark background + avatar
+        const int ringWidth = 5;  // Thicker color ring
+        QRectF innerRect = outerRect.adjusted(ringWidth, ringWidth, -ringWidth, -ringWidth);
+        // Change inner ring background to dark blue instead of pure black
+        painter.setBrush(QColor("#050b1e"));
+        painter.drawEllipse(innerRect);
+
+        if (icon_) {
+            const int d = static_cast<int>(qMin(innerRect.width(), innerRect.height()));
+            QSize avatarSize(d, d);
+            QPixmap avatarPixmap = roundedFromIcon(icon_.get(), avatarSize, d / 2);
+
+            QPointF topLeft(innerRect.center().x() - avatarPixmap.width() / 2.0,
+                            innerRect.center().y() - avatarPixmap.height() / 2.0);
+            painter.drawPixmap(topLeft, avatarPixmap);
+        } else if (!avatarPath_.isEmpty()) {
+            // Load avatar from path
+            const int d = static_cast<int>(qMin(innerRect.width(), innerRect.height()));
+            QSize avatarSize(d, d);
+            QPixmap avatarPixmap = roundedFromPath(avatarPath_, avatarSize, d / 2);
+
+            QPointF topLeft(innerRect.center().x() - avatarPixmap.width() / 2.0,
+                            innerRect.center().y() - avatarPixmap.height() / 2.0);
+            painter.drawPixmap(topLeft, avatarPixmap);
+        }
+    }
+
+private:
+    std::unique_ptr<QIcon> icon_;
+    QString avatarPath_;
+};
+
 QString defaultProfileStyle() {
     return QStringLiteral(
         "QWidget#profilePageRoot {"
@@ -45,33 +218,49 @@ QString defaultProfileStyle() {
         "QScrollArea { background: transparent; border: none; }"
         "QScrollArea > QWidget > QWidget { background: transparent; }"
         "QFrame#contentShell {"
-        "  background: rgba(4,12,26,0.9);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.95), "
+        "    stop:0.3 rgba(58,125,255,0.15), "
+        "    stop:0.6 rgba(108,173,255,0.12), "
+        "    stop:1 rgba(12,40,118,0.9));"
         "  border-radius: 48px;"
-        "  border: 1px solid rgba(63,134,255,0.35);"
-        "  outline: 1px solid rgba(10,18,40,0.6);"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.2);"
         "}"
         "QFrame#heroCard {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0b1526, stop:1 #040714);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.85), "
+        "    stop:0.25 rgba(58,125,255,0.25), "
+        "    stop:0.5 rgba(12,40,118,0.90), "
+        "    stop:0.75 rgba(58,125,255,0.20), "
+        "    stop:1 rgba(8,20,60,0.85));"
         "  border-radius: 32px;"
-        "  border: 1px solid rgba(83,164,255,0.35);"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.3);"
         "}"
-        "QLabel#displayName { font-size: 30px; font-weight: 700; color: white; }"
-        "QLabel#username { font-size: 15px; color: #6f84a8; }"
-        "QLabel#bioLabel { color: #cfd9ec; line-height: 1.6; }"
-        "QLabel#statValue { font-size: 20px; font-weight: 700; color: white; }"
-        "QLabel#statLabel { font-size: 12px; text-transform: uppercase; color: #6a819f; letter-spacing: 0.2em; }"
+        "QHBoxLayout { background: transparent; }"
+        "QVBoxLayout { background: transparent; }"
+        "QLabel#displayName { font-size: 30px; font-weight: 700; color: #ffffff; }"
+        "QLabel#username { font-size: 15px; color: #d0e4ff; font-weight: 600; }"
+        "QLabel#bioLabel { color: #f0f5ff; line-height: 1.6; font-weight: 500; }"
+        "QLabel#statValue { font-size: 20px; font-weight: 700; color: #ffffff; }"
+        "QLabel#statLabel { font-size: 12px; text-transform: uppercase; color: #c8dcff; letter-spacing: 0.2em; font-weight: 600; }"
         "QPushButton#primaryCta {"
         "  background-color: #2f8dff;"
         "  border-radius: 22px;"
         "  padding: 12px 26px;"
-        "  border: none;"
+        "  border: 2px solid rgba(76,162,255,0.8);"
         "  color: white;"
         "  font-weight: 700;"
+        "  text-align: left;"
         "}"
-        "QPushButton#primaryCta:hover { background-color: #4ca2ff; }"
+        "QPushButton#primaryCta:hover {"
+        "  background-color: #4ca2ff;"
+        "  border-color: rgba(108,173,255,1.0);"
+        "}"
         "QPushButton#primaryCta:checked {"
         "  background-color: rgba(22,37,66,0.85);"
-        "  border: 1px solid rgba(76,162,255,0.8);"
+        "  border: 2px solid rgba(76,162,255,0.8);"
         "  color: #9db6ff;"
         "}"
         "QPushButton#secondaryCta {"
@@ -81,16 +270,33 @@ QString defaultProfileStyle() {
         "  border-radius: 22px;"
         "  padding: 11px 24px;"
         "  font-weight: 600;"
+        "  text-align: left;"
+        "}"
+        "QPushButton#secondaryCta:hover {"
+        "  background-color: rgba(76,162,255,0.1);"
+        "  border-color: rgba(76,162,255,0.8);"
         "}"
         "QFrame#videoFilter {"
-        "  background: rgba(6,14,28,0.9);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.80), "
+        "    stop:0.33 rgba(58,125,255,0.25), "
+        "    stop:0.66 rgba(12,40,118,0.85), "
+        "    stop:1 rgba(8,20,60,0.80));"
         "  border-radius: 20px;"
-        "  border: 1px solid rgba(63,134,255,0.25);"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.25);"
         "}"
         "QFrame#videoGrid {"
-        "  background: rgba(5,10,20,0.92);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.85), "
+        "    stop:0.2 rgba(58,125,255,0.25), "
+        "    stop:0.4 rgba(12,40,118,0.90), "
+        "    stop:0.6 rgba(58,125,255,0.20), "
+        "    stop:0.8 rgba(12,40,118,0.85), "
+        "    stop:1 rgba(8,20,60,0.85));"
         "  border-radius: 30px;"
-        "  border: 1px solid rgba(63,134,255,0.25);"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.3);"
         "  padding: 6px;"
         "}"
         "QPushButton#filterTab {"
@@ -101,21 +307,171 @@ QString defaultProfileStyle() {
         "  padding: 8px 16px;"
         "  border-radius: 14px;"
         "}"
-        "QPushButton#filterTab:hover { color: #d3ddff; }"
+        "QPushButton#filterTab:hover { "
+        "  color: #d3ddff;"
+        "  background-color: rgba(108,173,255,0.15);"
+        "}"
         "QPushButton#filterTab:checked {"
         "  color: white;"
-        "  background-color: rgba(47,141,255,0.22);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(58,125,255,0.35), "
+        "    stop:0.5 rgba(108,173,255,0.40), "
+        "    stop:1 rgba(58,125,255,0.35));"
+        "  border: 1px solid rgba(108,173,255,0.6);"
         "}"
         "QPushButton#videoTile {"
-        "  background-color: #0b1326;"
-        "  border: 1px solid rgba(87,168,255,0.18);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.85), "
+        "    stop:0.5 rgba(58,125,255,0.25), "
+        "    stop:1 rgba(12,40,118,0.90));"
+        "  border: 2px solid rgba(108,173,255,0.4);"
         "  border-radius: 20px;"
         "  min-height: 260px;"
         "}"
         "QPushButton#videoTile:hover {"
-        "  border: 1px solid rgba(76,162,255,0.5);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(58,125,255,0.35), "
+        "    stop:0.5 rgba(108,173,255,0.40), "
+        "    stop:1 rgba(255,138,160,0.30));"
+        "  border: 2px solid rgba(108,173,255,0.7);"
+        "  transform: scale(1.02);"
         "}"
-        "QLabel#sectionTitle { font-size: 20px; font-weight: 700; color: white; }");
+        "QLabel#sectionTitle { font-size: 20px; font-weight: 700; color: #ffffff; }");
+}
+
+QString dayModeProfileStyle() {
+    return QStringLiteral(
+        "QWidget#profilePageRoot {"
+        "  background: qradialgradient(cx:0.25, cy:0.2, radius:1.25,"
+        "    stop:0 #e8f0ff, stop:0.5 #dde8f5, stop:1 #f4f7ff);"
+        "}"
+        "QScrollArea { background: transparent; border: none; }"
+        "QScrollArea > QWidget > QWidget { background: transparent; }"
+        "QFrame#contentShell {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(240,245,255,0.95), "
+        "    stop:0.3 rgba(220,235,255,0.90), "
+        "    stop:0.6 rgba(200,225,255,0.85), "
+        "    stop:1 rgba(240,245,255,0.95));"
+        "  border-radius: 48px;"
+        "  border: 2px solid rgba(108,173,255,0.4);"
+        "  outline: 1px solid rgba(255,79,112,0.2);"
+        "}"
+        "QFrame#heroCard {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(240,245,255,0.98), "
+        "    stop:0.25 rgba(220,235,255,0.95), "
+        "    stop:0.5 rgba(200,225,255,0.92), "
+        "    stop:0.75 rgba(220,235,255,0.95), "
+        "    stop:1 rgba(240,245,255,0.98));"
+        "  border-radius: 32px;"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.25);"
+        "}"
+        "QHBoxLayout { background: transparent; }"
+        "QVBoxLayout { background: transparent; }"
+        "QLabel#displayName { font-size: 30px; font-weight: 700; color: #0c1b33; }"
+        "QLabel#username { font-size: 15px; color: #4f5f7f; font-weight: 600; }"
+        "QLabel#bioLabel { color: #2d3a4f; line-height: 1.6; font-weight: 500; }"
+        "QLabel#statValue { font-size: 20px; font-weight: 700; color: #0c1b33; }"
+        "QLabel#statLabel { font-size: 12px; text-transform: uppercase; color: #5f6d8c; letter-spacing: 0.2em; font-weight: 600; }"
+        "QPushButton#primaryCta {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #3A7DFF, "
+        "    stop:0.5 #6CADFF, "
+        "    stop:1 #3A7DFF);"
+        "  border-radius: 22px;"
+        "  padding: 12px 26px;"
+        "  border: 2px solid rgba(108,173,255,0.8);"
+        "  color: white;"
+        "  font-weight: 700;"
+        "  text-align: left;"
+        "}"
+        "QPushButton#primaryCta:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #6CADFF, "
+        "    stop:0.5 #3A7DFF, "
+        "    stop:1 #6CADFF);"
+        "  border-color: rgba(108,173,255,1.0);"
+        "}"
+        "QPushButton#primaryCta:checked {"
+        "  background: rgba(200,220,255,0.85);"
+        "  border: 2px solid rgba(76,162,255,0.8);"
+        "  color: #1a3d7f;"
+        "}"
+        "QPushButton#secondaryCta {"
+        "  background-color: transparent;"
+        "  color: #2d3a4f;"
+        "  border: 2px solid rgba(108,173,255,0.6);"
+        "  border-radius: 22px;"
+        "  padding: 11px 24px;"
+        "  font-weight: 600;"
+        "  text-align: left;"
+        "}"
+        "QPushButton#secondaryCta:hover {"
+        "  background-color: rgba(108,173,255,0.15);"
+        "  border-color: rgba(108,173,255,0.8);"
+        "}"
+        "QFrame#videoFilter {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(240,245,255,0.95), "
+        "    stop:0.33 rgba(220,235,255,0.90), "
+        "    stop:0.66 rgba(200,225,255,0.85), "
+        "    stop:1 rgba(240,245,255,0.95));"
+        "  border-radius: 20px;"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.25);"
+        "}"
+        "QFrame#videoGrid {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(240,245,255,0.95), "
+        "    stop:0.2 rgba(220,235,255,0.90), "
+        "    stop:0.4 rgba(200,225,255,0.85), "
+        "    stop:0.6 rgba(220,235,255,0.90), "
+        "    stop:0.8 rgba(200,225,255,0.85), "
+        "    stop:1 rgba(240,245,255,0.95));"
+        "  border-radius: 30px;"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.25);"
+        "  padding: 6px;"
+        "}"
+        "QPushButton#filterTab {"
+        "  background-color: transparent;"
+        "  color: #5f6d8c;"
+        "  border: none;"
+        "  font-weight: 600;"
+        "  padding: 8px 16px;"
+        "  border-radius: 14px;"
+        "}"
+        "QPushButton#filterTab:hover { "
+        "  color: #2d3a4f;"
+        "  background-color: rgba(108,173,255,0.20);"
+        "}"
+        "QPushButton#filterTab:checked {"
+        "  color: #0c1b33;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(108,173,255,0.35), "
+        "    stop:0.5 rgba(58,125,255,0.40), "
+        "    stop:1 rgba(108,173,255,0.35));"
+        "  border: 1px solid rgba(108,173,255,0.6);"
+        "}"
+        "QPushButton#videoTile {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(240,245,255,0.90), "
+        "    stop:0.5 rgba(220,235,255,0.85), "
+        "    stop:1 rgba(200,225,255,0.90));"
+        "  border: 2px solid rgba(108,173,255,0.4);"
+        "  border-radius: 20px;"
+        "  min-height: 260px;"
+        "}"
+        "QPushButton#videoTile:hover {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(108,173,255,0.25), "
+        "    stop:0.5 rgba(58,125,255,0.30), "
+        "    stop:1 rgba(108,173,255,0.25));"
+        "  border: 2px solid rgba(108,173,255,0.7);"
+        "}"
+        "QLabel#sectionTitle { font-size: 20px; font-weight: 700; color: #0c1b33; }");
 }
 
 QString highContrastProfileStyle() {
@@ -245,6 +601,7 @@ ProfileCopy localizedProfileCopy(AppLanguage language) {
     };
 }
 
+namespace {
 QWidget *createStatBadge(const QString &value,
                          const QString &label,
                          const QString &labelKey,
@@ -274,10 +631,13 @@ QWidget *createStatBadge(const QString &value,
 
 ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *parent)
     : QWidget(parent),
-      videos_(videos) {
+      videos_(videos),
+      gradientAngle_(0.0),
+      scrollArea_(nullptr) {
     setObjectName("profilePageRoot");
     defaultStyleSheet_ = defaultProfileStyle();
     highContrastStyleSheet_ = highContrastProfileStyle();
+    dayModeStyleSheet_ = dayModeProfileStyle();
     setStyleSheet(defaultStyleSheet_);
 
     auto *rootLayout = new QVBoxLayout(this);
@@ -285,6 +645,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     rootLayout->setSpacing(0);
 
     auto *scrollArea = new QScrollArea(this);
+    scrollArea_ = scrollArea;
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -304,6 +665,19 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 
     scrollArea->setWidget(contentWidget);
     rootLayout->addWidget(scrollArea);
+    
+    // Connect scrollbar signal to make color ring change with scrolling
+    QObject::connect(scrollArea->verticalScrollBar(), &QAbstractSlider::valueChanged, 
+                     [this, scrollArea](int value) {
+        // Convert scroll position to angle (0-360 degrees)
+        const int maxScroll = scrollArea->verticalScrollBar()->maximum();
+        if (maxScroll > 0) {
+            gradientAngle_ = (static_cast<qreal>(value) / maxScroll) * 360.0;
+        } else {
+            gradientAngle_ = 0.0;
+        }
+        update(); // 触发重绘
+    });
 
     auto *heroCard = new QFrame(contentShell);
     heroCard->setObjectName("heroCard");
@@ -314,10 +688,9 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     identityRow_ = new QHBoxLayout();
     identityRow_->setSpacing(20);
 
-    auto *avatar = new QLabel(heroCard);
-    avatar->setFixedSize(120, 120);
-    avatar->setScaledContents(true);
-    avatar->setPixmap(roundedFromIcon(videos.empty() ? nullptr : videos.front().icon, avatar->size(), 60));
+    // Use colored ring avatar
+    const QIcon *avatarIcon = videos.empty() ? nullptr : videos.front().icon;
+    avatarWidget_ = new AvatarRingWidget(avatarIcon, heroCard);
 
     auto *identityCol = new QVBoxLayout();
     identityCol->setSpacing(8);
@@ -333,13 +706,38 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     followBtn->setObjectName("primaryCta");
     followBtn->setCheckable(true);
     followBtn->setCursor(Qt::PointingHandCursor);
+    // Add icon (make it larger, closer to Instagram style)
+    followBtn->setIcon(QIcon(":/icons/icons/follow.svg"));
+    followBtn->setIconSize(QSize(34, 34));
     followButton_ = followBtn;
     QObject::connect(followBtn, &QPushButton::toggled, this, [this](bool checked) {
         applyFollowState(checked);
+        // 语音播报
+        if (checked) {
+            NarrationManager::instance().narrate(
+                QString::fromUtf8("已关注"),
+                "Following"
+            );
+        } else {
+            NarrationManager::instance().narrate(
+                QString::fromUtf8("取消关注"),
+                "Unfollowed"
+            );
+        }
+    });
+    
+    QObject::connect(shareButton_, &QPushButton::clicked, this, [this]() {
+        NarrationManager::instance().narrate(
+            QString::fromUtf8("分享主页"),
+            "Share profile"
+        );
     });
 
     shareButton_ = new QPushButton("Share profile", heroCard);
     shareButton_->setObjectName("secondaryCta");
+    // Add icon (make it larger)
+    shareButton_->setIcon(QIcon(":/icons/icons/share_profile.svg"));
+    shareButton_->setIconSize(QSize(30, 30));
     ctaRow->addWidget(followBtn);
     ctaRow->addWidget(shareButton_);
     ctaRow->addStretch();
@@ -348,7 +746,7 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     identityCol->addWidget(usernameLabel_);
     identityCol->addLayout(ctaRow);
 
-    identityRow_->addWidget(avatar);
+    identityRow_->addWidget(avatarWidget_);
     identityRow_->addLayout(identityCol);
     identityRow_->addStretch();
 
@@ -401,9 +799,22 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
         filterLayout->addWidget(tab);
         filterButtons_.push_back(tab);
 
-        QObject::connect(tab, &QPushButton::toggled, this, [this, index = static_cast<int>(spec.mode)](bool checked) {
+        QObject::connect(tab, &QPushButton::toggled, this, [this, index = static_cast<int>(spec.mode), &spec](bool checked) {
             if (checked) {
                 setActiveFilter(index);
+                // Voice narration
+                QString zhText, enText;
+                if (index == FilterMode::Grid) {
+                    zhText = QString::fromUtf8("网格");
+                    enText = "Grid";
+                } else if (index == FilterMode::Drafts) {
+                    zhText = QString::fromUtf8("草稿");
+                    enText = "Drafts";
+                } else if (index == FilterMode::Tagged) {
+                    zhText = QString::fromUtf8("被标记");
+                    enText = "Tagged";
+                }
+                NarrationManager::instance().narrate(zhText, enText);
             }
         });
     }
@@ -418,16 +829,20 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
     emptyStateLabel_->setWordWrap(true);
     emptyStateLabel_->hide();
 
-    const int total = std::min<int>(videos_.size(), 9);
+    // Profile grid only shows latest 8 videos (e.g. n-u), not the earliest ones
+    const int total = std::min<int>(videos_.size(), 8);
     gridOrder_.reserve(total);
     draftOrder_.reserve((total + 1) / 2);
     taggedOrder_.reserve(total / 2);
-    for (int i = 0; i < total; ++i) {
-        gridOrder_.push_back(i);
-        if (i % 2 == 0) {
-            draftOrder_.push_back(i);
+
+    const int startIndex = static_cast<int>(videos_.size()) - total; // Take last total items
+    for (int offset = 0; offset < total; ++offset) {
+        const int idx = startIndex + offset;
+        gridOrder_.push_back(idx);
+        if (offset % 2 == 0) {
+            draftOrder_.push_back(idx);
         } else {
-            taggedOrder_.push_back(i);
+            taggedOrder_.push_back(idx);
         }
     }
     if (draftOrder_.empty() && !gridOrder_.empty()) {
@@ -458,6 +873,37 @@ ProfilePage::ProfilePage(const std::vector<TheButtonInfo> &videos, QWidget *pare
 void ProfilePage::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
     updateResponsiveLayout();
+}
+
+void ProfilePage::paintEvent(QPaintEvent *event) {
+    QWidget::paintEvent(event);
+    
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    
+    // Draw colored border (same as Homepage)
+    // Outer rectangle slightly inset to avoid clipping
+    QRectF outerRect = rect().adjusted(3.0, 3.0, -3.0, -3.0);
+    
+    // Use multi-color gradient similar to avatar to create a "color ring border"
+    // Gradient angle changes with scroll position
+    QConicalGradient grad(outerRect.center(), gradientAngle_);
+    grad.setColorAt(0.00, QColor("#FF4F70"));
+    grad.setColorAt(0.18, QColor("#FF8AA0"));
+    grad.setColorAt(0.32, QColor("#6CADFF"));
+    grad.setColorAt(0.46, QColor("#3A7DFF"));
+    grad.setColorAt(0.60, QColor("#BFBFBF"));
+    grad.setColorAt(0.74, QColor("#6CADFF"));
+    grad.setColorAt(0.88, QColor("#FF8AA0"));
+    grad.setColorAt(1.00, QColor("#FF4F70"));
+    
+    QPen pen(QBrush(grad), 5.0);
+    pen.setJoinStyle(Qt::RoundJoin);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+    
+    const qreal radius = 10.0;
+    painter.drawRoundedRect(outerRect, radius, radius);
 }
 
 void ProfilePage::updateResponsiveLayout() {
@@ -538,6 +984,11 @@ void ProfilePage::rebuildGrid() {
         }
         QObject::connect(tile, &QPushButton::clicked, this, [this, index]() {
             emit playVideoRequested(index);
+            // Voice narration
+            NarrationManager::instance().narrate(
+                QString::fromUtf8("播放视频 %1").arg(index + 1),
+                QString("Play video %1").arg(index + 1)
+            );
         });
         videoTiles_.push_back(tile);
     }
@@ -597,6 +1048,8 @@ void ProfilePage::setLanguage(AppLanguage language) {
     }
     language_ = language;
     rebuildStrings();
+    // Voice narration language switch
+    NarrationManager::instance().setLanguage(language);
 }
 
 void ProfilePage::rebuildStrings() {
@@ -663,6 +1116,133 @@ void ProfilePage::setHighContrastMode(bool enabled) {
         return;
     }
     highContrastMode_ = enabled;
-    setStyleSheet(enabled ? highContrastStyleSheet_ : defaultStyleSheet_);
+    updateStyleSheet();
+}
+
+void ProfilePage::setDayMode(bool dayMode) {
+    if (dayMode_ == dayMode) {
+        return;
+    }
+    dayMode_ = dayMode;
+    updateStyleSheet();
+}
+
+void ProfilePage::updateStyleSheet() {
+    if (highContrastMode_) {
+        setStyleSheet(highContrastStyleSheet_);
+    } else if (dayMode_) {
+        setStyleSheet(dayModeStyleSheet_);
+    } else {
+        setStyleSheet(defaultStyleSheet_);
+    }
+
+    // Switch high contrast icons based on mode: night/high contrast use *1.svg, day mode uses default
+    const bool useAltIcons = highContrastMode_ || !dayMode_;
+    if (followButton_) {
+        followButton_->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/follow1.svg")
+                                                 : QStringLiteral(":/icons/icons/follow.svg")));
+    }
+    if (shareButton_) {
+        shareButton_->setIcon(QIcon(useAltIcons ? QStringLiteral(":/icons/icons/share_profile1.svg")
+                                                : QStringLiteral(":/icons/icons/share_profile.svg")));
+    }
+}
+
+void ProfilePage::setUserInfo(const QString &username, const QString &displayName, const QString &bio, const QString &avatarPath) {
+    currentUsername_ = username;
+    
+    // Update avatar
+    if (avatarWidget_) {
+        QString finalAvatarPath = avatarPath;
+        if (finalAvatarPath.isEmpty() && !username.isEmpty()) {
+            finalAvatarPath = getAvatarPathForUser(username);
+        }
+        qDebug() << "[ProfilePage::setUserInfo] username:" << username << "avatarPath:" << finalAvatarPath;
+        if (!finalAvatarPath.isEmpty()) {
+            if (QFile::exists(finalAvatarPath)) {
+                avatarWidget_->setAvatarFromPath(finalAvatarPath);
+                qDebug() << "[ProfilePage::setUserInfo] 成功设置头像路径:" << finalAvatarPath;
+            } else {
+                qDebug() << "[ProfilePage::setUserInfo] 头像文件不存在:" << finalAvatarPath;
+            }
+        } else {
+            qDebug() << "[ProfilePage::setUserInfo] 未找到头像路径";
+        }
+    }
+    
+    if (!username.isEmpty()) {
+        usernameText_ = "@" + username;
+        if (usernameLabel_) {
+            usernameLabel_->setText(usernameText_);
+        }
+    }
+    
+    if (!displayName.isEmpty()) {
+        displayNameText_ = displayName;
+        if (displayNameLabel_) {
+            displayNameLabel_->setText(displayNameText_);
+        }
+    } else if (!username.isEmpty()) {
+        // If displayName not provided, use capitalized first letter of username
+        QString capitalized = username;
+        if (!capitalized.isEmpty()) {
+            capitalized[0] = capitalized[0].toUpper();
+        }
+        displayNameText_ = capitalized;
+        if (displayNameLabel_) {
+            displayNameLabel_->setText(displayNameText_);
+        }
+    }
+    
+    if (!bio.isEmpty()) {
+        bioText_ = bio;
+        if (bioLabel_) {
+            bioLabel_->setText(bioText_);
+        }
+    } else if (!username.isEmpty()) {
+        // Generate default bio
+        bioText_ = QString("Welcome to %1's profile!").arg(username);
+        if (bioLabel_) {
+            bioLabel_->setText(bioText_);
+        }
+    }
+    
+    // Generate different statistics for different users
+    if (!username.isEmpty() && !statLabelWidgets_.empty()) {
+        // Generate different statistics based on username (use hash to ensure consistency)
+        uint hash = qHash(username);
+        int following = 200 + (hash % 500);  // 200-700
+        int followers = 1000 + ((hash * 3) % 20000);  // 1K-21K
+        int likes = 50000 + ((hash * 7) % 950000);  // 50K-1M
+        
+        // Format numbers
+        QString followingStr = QString::number(following);
+        QString followersStr;
+        if (followers >= 1000) {
+            followersStr = QString::number(followers / 1000.0, 'f', 1) + "K";
+        } else {
+            followersStr = QString::number(followers);
+        }
+        QString likesStr;
+        if (likes >= 1000000) {
+            likesStr = QString::number(likes / 1000000.0, 'f', 1) + "M";
+        } else if (likes >= 1000) {
+            likesStr = QString::number(likes / 1000.0, 'f', 1) + "K";
+        } else {
+            likesStr = QString::number(likes);
+        }
+        
+        // Update statistics labels
+        for (auto &pair : statLabelWidgets_) {
+            QString key = pair.second;
+            if (key == "stat.following" && pair.first) {
+                pair.first->setText(followingStr);
+            } else if (key == "stat.followers" && pair.first) {
+                pair.first->setText(followersStr);
+            } else if (key == "stat.likes" && pair.first) {
+                pair.first->setText(likesStr);
+            }
+        }
+    }
 }
 

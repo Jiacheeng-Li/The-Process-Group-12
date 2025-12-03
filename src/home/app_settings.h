@@ -15,11 +15,11 @@ struct AccessibilityPreferences {
     bool colorBlindPaletteEnabled = false;
     AppLanguage interfaceLanguage = AppLanguage::Chinese;
     QString subtitleLanguage = QStringLiteral("zh");
-    // 视频显示参数 (0.0-2.0, 1.0为默认值)
+    // Video display parameters (0.0-2.0, 1.0 is default)
     double brightness = 1.0;
     double contrast = 1.0;
     double saturation = 1.0;
-    // 播放倍速 (0.25-4.0, 1.0为默认值)
+    // Playback speed (0.25-4.0, 1.0 is default)
     double playbackRate = 1.0;
 };
 

@@ -1,0 +1,20 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- 背景圆盘 -->
+  <circle cx="40" cy="40" r="34" fill="#111318" stroke="#FF4F70" stroke-width="2"></circle>
+
+  <!-- 头像（头部） -->
+  <circle cx="40" cy="32" r="10" fill="#FFFFFF"></circle>
+
+  <!-- 头像（肩膀） -->
+  <path d="M26 54 Q40 42 54 54" stroke="#FFFFFF" stroke-width="6" fill="none" stroke-linecap="round"></path>
+
+  <!-- 加号圆底 -->
+  <circle cx="54" cy="26" r="10" fill="#FF4F70"></circle>
+
+  <!-- 加号符号 -->
+  <rect x="52" y="20" width="4" height="12" fill="#FFFFFF"></rect>
+  <rect x="48" y="24" width="12" height="4" fill="#FFFFFF"></rect>
+
+</svg>

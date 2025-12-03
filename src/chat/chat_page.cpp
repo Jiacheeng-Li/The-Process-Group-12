@@ -1,4 +1,5 @@
 #include "chat_page.h"
+#include "../shared/narration_manager.h"
 
 #include <QFrame>
 #include <QHBoxLayout>
@@ -19,42 +20,76 @@
 namespace {
 QString defaultChatStyle() {
     return QStringLiteral(
-        "QWidget#chatPageRoot { background-color: #01040a; }"
+        "QWidget#chatPageRoot { "
+        "  background: qradialgradient(cx:0.25, cy:0.2, radius:1.25,"
+        "    stop:0 #091230, stop:0.5 #030918, stop:1 #00040a);"
+        "}"
         "QFrame#chatSurface {"
-        "  background-color: #040915;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(8,20,60,0.95), "
+        "    stop:0.3 rgba(58,125,255,0.15), "
+        "    stop:0.6 rgba(108,173,255,0.12), "
+        "    stop:1 rgba(12,40,118,0.9));"
         "  border-radius: 36px;"
-        "  border: 1px solid rgba(47,141,255,0.2);"
+        "  border: 2px solid rgba(108,173,255,0.5);"
+        "  outline: 1px solid rgba(255,79,112,0.2);"
         "}"
         "QFrame#panel {"
-        "  background-color: rgba(6,12,22,0.95);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(255,79,112,0.12), "
+        "    stop:0.33 rgba(108,173,255,0.18), "
+        "    stop:0.66 rgba(58,125,255,0.20), "
+        "    stop:1 rgba(191,191,191,0.10));"
         "  border-radius: 26px;"
-        "  border: 1px solid rgba(47,141,255,0.18);"
+        "  border: 2px solid rgba(108,173,255,0.4);"
+        "  outline: 1px solid rgba(255,79,112,0.25);"
         "}"
         "QLabel#sectionTitle { font-size: 13px; color: #6d86b4; letter-spacing: 0.25em; }"
         "QLabel#contactName { font-size: 26px; font-weight: 700; color: white; }"
         "QLabel#status { color: #7c94c3; }"
         "QWidget#messageStream {"
-        "  background-color: #050b18;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(5,11,24,0.95), "
+        "    stop:0.5 rgba(58,125,255,0.08), "
+        "    stop:1 rgba(12,20,40,0.90));"
         "  border-radius: 26px;"
-        "  border: 1px solid rgba(47,141,255,0.12);"
+        "  border: 1px solid rgba(108,173,255,0.3);"
         "}"
         "QLineEdit#messageInput {"
-        "  background-color: #0b1324;"
-        "  border: 1px solid rgba(47,141,255,0.35);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(11,19,36,0.95), "
+        "    stop:0.5 rgba(58,125,255,0.15), "
+        "    stop:1 rgba(11,19,36,0.95));"
+        "  border: 2px solid rgba(108,173,255,0.4);"
         "  border-radius: 24px;"
         "  padding: 15px 22px;"
         "  color: white;"
         "}"
-        "QLineEdit#messageInput:focus { border: 1px solid rgba(79,161,255,0.85); }"
+        "QLineEdit#messageInput:focus { "
+        "  border: 2px solid rgba(108,173,255,0.8);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(11,19,36,0.98), "
+        "    stop:0.5 rgba(108,173,255,0.25), "
+        "    stop:1 rgba(11,19,36,0.98));"
+        "}"
         "QPushButton#sendButton {"
-        "  background-color: #2f8dff;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #3A7DFF, "
+        "    stop:0.5 #6CADFF, "
+        "    stop:1 #3A7DFF);"
         "  color: white;"
         "  padding: 14px 30px;"
         "  border-radius: 24px;"
-        "  border: none;"
+        "  border: 2px solid rgba(108,173,255,0.8);"
         "  font-weight: 700;"
         "}"
-        "QPushButton#sendButton:hover { background-color: #4ca2ff; }"
+        "QPushButton#sendButton:hover { "
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 #6CADFF, "
+        "    stop:0.5 #3A7DFF, "
+        "    stop:1 #6CADFF);"
+        "  border-color: rgba(108,173,255,1.0);"
+        "}"
         "QListWidget#chatList {"
         "  background-color: transparent;"
         "  border: none;"
@@ -62,18 +97,31 @@ QString defaultChatStyle() {
         "  font-size: 15px;"
         "}"
         "QListWidget#chatList::item { margin: 4px 0; padding: 10px 8px; border-radius: 12px; }"
-        "QListWidget#chatList::item:selected { background-color: rgba(47,141,255,0.2); }"
+        "QListWidget#chatList::item:selected { "
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "    stop:0 rgba(108,173,255,0.25), "
+        "    stop:1 rgba(58,125,255,0.20));"
+        "  border-radius: 12px;"
+        "}"
         "QLabel#hint { color: #5c729c; font-size: 13px; }"
         "QWidget#messageRow { background: transparent; }"
         "QFrame#bubbleOutgoing {"
-        "  background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2f8dff, stop:1 #1a62ff);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 #3A7DFF, "
+        "    stop:0.5 #6CADFF, "
+        "    stop:1 #3A7DFF);"
         "  border-radius: 22px;"
         "  padding: 14px 18px;"
+        "  border: 1px solid rgba(108,173,255,0.6);"
         "}"
         "QFrame#bubbleIncoming {"
-        "  background-color: #0c121f;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "    stop:0 rgba(12,18,31,0.95), "
+        "    stop:0.5 rgba(58,125,255,0.12), "
+        "    stop:1 rgba(12,18,31,0.95));"
         "  border-radius: 22px;"
         "  padding: 14px 18px;"
+        "  border: 1px solid rgba(108,173,255,0.25);"
         "}"
         "QFrame#bubbleOutgoing QLabel, QFrame#bubbleIncoming QLabel { color: white; font-size: 14px; }");
 }
@@ -322,7 +370,7 @@ void ChatPage::initializeContacts() {
     contacts_ = {
         {"Noah Chen", "active · 2m ago", {
              {"omw to the rooftop drop, you coming?", false},
-             {"give me 5, need to finish today’s BeReal edit", true}
+             {"give me 5, need to finish today's BeReal edit", true}
          }},
         {"Zaya Tran", "drafting a sunset drop", {
              {"Need your RAWs from Lisbon?", false},
@@ -373,6 +421,12 @@ void ChatPage::switchContact(int index) {
     contactLabel_->setText(contacts_[index].name);
     statusLabel_->setText(contacts_[index].status);
     rebuildConversation();
+    // Voice narration for contact switch
+    const QString &contactName = contacts_[index].name;
+    NarrationManager::instance().narrate(
+        QString::fromUtf8("切换到 %1").arg(contactName),
+        QString("Switched to %1").arg(contactName)
+    );
 }
 
 void ChatPage::handleSend() {
@@ -388,6 +442,12 @@ void ChatPage::handleSend() {
     thread.messages.push_back({text, true});
     appendMessageRow(text, true);
     messageInput_->clear();
+    
+    // Voice narration
+    NarrationManager::instance().narrate(
+        QString::fromUtf8("消息已发送"),
+        "Message sent"
+    );
 }
 
 void ChatPage::handleContactChanged(int row) {
@@ -417,6 +477,8 @@ void ChatPage::setLanguage(AppLanguage language) {
     language_ = language;
     rebuildStrings();
     initializeContacts();
+    // Voice narration语言切换
+    NarrationManager::instance().setLanguage(language);
 }
 
 void ChatPage::rebuildStrings() {
@@ -463,4 +525,3 @@ void ChatPage::setHighContrastMode(bool enabled) {
     highContrastMode_ = enabled;
     setStyleSheet(enabled ? highContrastStyleSheet_ : defaultStyleSheet_);
 }
-
